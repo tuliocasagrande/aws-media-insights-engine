@@ -170,6 +170,15 @@ cp -v media_insights_engine_lambda_layer_python3.7.zip $dist_dir/
 mv requirements.txt.old requirements.txt
 cd $template_dir/
 
+
+echo "------------------------------------------------------------------------------"
+echo "Copy opencv layer from AWS Hosting Bucket"
+echo "------------------------------------------------------------------------------"
+
+curl -O https://rodeolabz-us-west-2.s3.amazonaws.com/media_insights_engine/media_insights_engine_cv2_python3.zip
+
+mv media_insights_engine_cv2_python3.zip $dist_dir/media_insights_engine_cv2_python3.zip
+
 echo "------------------------------------------------------------------------------"
 echo "Copy CloudFormation Templates"
 echo "------------------------------------------------------------------------------"
@@ -778,6 +787,26 @@ zip -r9 start_label_detection.zip start_label_detection.py
 zip -r9 check_label_detection_status.zip check_label_detection_status.py
 zip -r9 start_person_tracking.zip start_person_tracking.py
 zip -r9 check_person_tracking_status.zip check_person_tracking_status.py
+
+zip -r9 start_batch_content_moderation.zip start_batch_content_moderation.py
+zip -r9 start_batch_face_search.zip start_batch_face_search.py
+zip -r9 start_batch_text_detection.zip start_batch_text_detection.py
+zip -r9 start_batch_weapon_detection.zip start_batch_weapon_detection.py
+
+mv -f *.zip $dist_dir/
+
+echo "------------------------------------------------------------------------------"
+echo "Frame Extractor  operator"
+echo "------------------------------------------------------------------------------"
+
+echo "Building frame extractor function"
+cd "$source_dir/operators/frame_extractor" || exit
+
+# Make lambda package
+
+echo "create lambda package"
+
+zip -r9 frame_extractor.zip frame_extractor.py
 
 mv -f *.zip $dist_dir/
 

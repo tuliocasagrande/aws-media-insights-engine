@@ -26,6 +26,14 @@ Parameters:
     Type: String
     Description: "ARN of the Media insights lambda layer that contains basic python dependencies for boto3, chalice, control plane and dataplane"
 
+  MediaInsightsEnginePython36Layer:
+    Type: String
+    Description: "ARN of the Media insights lambda layer that contains basic python dependencies for boto3, chalice, control plane and dataplane"
+
+  MediaInsightsEngineCv2PythonLayer:
+    Type: String
+    Description: "Arn of the Media Insights python cv2 layer"
+
 Resources:
   # SNS topic for storing the output of async Rekognition jobs:
   snsRekognitionTopic:
@@ -34,6 +42,32 @@ Resources:
       DisplayName: "SNS Role for Rekognition"
 
   # IAM Roles:
+
+  frameExtractorRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+      Policies:
+        - PolicyName: "MieframeExtractorPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action: "lambda:InvokeFunction"
+                Resource: !Ref DataPlaneHandlerArn
+                Effect: "Allow"
+              # TODO: Security - figure out why this only works with * and fix it
+              - Action: "s3:*"
+                Resource: "*"
+                Effect: "Allow"
 
   mediaConvertS3Role:
     Type: "AWS::IAM::Role"
@@ -432,8 +466,34 @@ Resources:
                 Effect: "Allow"
 
   # Lambda functions
+  # Frame extractor
+  FrameExtractorFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      MemorySize: 512
+      Timeout: 120
+      Handler: "frame_extractor.lambda_handler"
+      Layers:
+        - !Ref "MediaInsightsEnginePython36Layer"
+        - !Ref "MediaInsightsEngineCv2PythonLayer"
+      Role: !GetAtt "frameExtractorRole.Arn"
+      Code:
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        S3Key:
+          !Join [
+            "/",
+            [
+            !FindInMap ["SourceCode", "General", "KeyPrefix"],
+            "frame_extractor.zip",
+            ],
+          ]
+      Runtime: "python3.6"
+      Environment:
+        Variables:
+          DataplaneEndpoint: !Ref "DataPlaneEndpoint"
+          DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          STORE_FRAMES: "resized"
 
-  # Comprehend
 
   startKeyPhrases:
     Type: "AWS::Lambda::Function"
@@ -537,6 +597,107 @@ Resources:
 
 
   # Rekognition
+
+  startBatchContentModeration:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      MemorySize: 512
+      Timeout: 600
+      Handler: "start_batch_content_moderation.lambda_handler"
+      Layers:
+        - !Ref "MediaInsightsEnginePython37Layer"
+      Role: !GetAtt "rekognitionRole.Arn"
+      Code:
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        S3Key:
+          !Join [
+            "/",
+            [
+            !FindInMap ["SourceCode", "General", "KeyPrefix"],
+            "start_batch_content_moderation.zip",
+            ],
+          ]
+      Runtime: "python3.7"
+      Environment:
+        Variables:
+          DataplaneEndpoint: !Ref "DataPlaneEndpoint"
+          DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+
+  startBatchFaceSearch:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      MemorySize: 512
+      Timeout: 600
+      Handler: "start_batch_face_search.lambda_handler"
+      Layers:
+        - !Ref "MediaInsightsEnginePython37Layer"
+        - !Ref "MediaInsightsEngineCv2PythonLayer"
+      Role: !GetAtt "rekognitionRole.Arn"
+      Code:
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        S3Key:
+          !Join [
+            "/",
+            [
+            !FindInMap ["SourceCode", "General", "KeyPrefix"],
+            "start_batch_face_search.zip",
+            ],
+          ]
+      Runtime: "python3.6"
+      Environment:
+        Variables:
+          DataplaneEndpoint: !Ref "DataPlaneEndpoint"
+          DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+
+  startBatchTextDetection:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      MemorySize: 512
+      Timeout: 600
+      Handler: "start_batch_text_detection.lambda_handler"
+      Layers:
+        - !Ref "MediaInsightsEnginePython37Layer"
+      Role: !GetAtt "rekognitionRole.Arn"
+      Code:
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        S3Key:
+          !Join [
+            "/",
+            [
+            !FindInMap ["SourceCode", "General", "KeyPrefix"],
+            "start_batch_text_detection.zip",
+            ],
+          ]
+      Runtime: "python3.7"
+      Environment:
+        Variables:
+          DataplaneEndpoint: !Ref "DataPlaneEndpoint"
+          DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+
+  startBatchWeaponDetection:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      MemorySize: 512
+      Timeout: 600
+      Handler: "start_batch_weapon_detection.lambda_handler"
+      Layers:
+        - !Ref "MediaInsightsEnginePython37Layer"
+      Role: !GetAtt "rekognitionRole.Arn"
+      Code:
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        S3Key:
+          !Join [
+            "/",
+            [
+            !FindInMap ["SourceCode", "General", "KeyPrefix"],
+            "start_batch_weapon_detection.zip",
+            ],
+          ]
+      Runtime: "python3.7"
+      Environment:
+        Variables:
+          DataplaneEndpoint: !Ref "DataPlaneEndpoint"
+          DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
 
   startCelebrityRecognition:
     Type: "AWS::Lambda::Function"
@@ -1150,6 +1311,61 @@ Resources:
 
   # Register as operators in the control plane
 
+  FrameExtractorOperation:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Operation"
+      Name: "frameExtractor"
+      Type: "Sync"
+      Configuration: { "MediaType": "Video", "Enabled": true }
+      StartLambdaArn: !GetAtt FrameExtractorFunction.Arn
+      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+
+  BatchContentModerationOperation:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Operation"
+      Name: "batchModeration"
+      Type: "Sync"
+      Configuration: { "MediaType": "Images", "Enabled": true }
+      StartLambdaArn: !GetAtt startBatchContentModeration.Arn
+      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+
+  BatchFaceSearchOperation:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Operation"
+      Name: "batchFaceSearch"
+      Type: "Sync"
+      Configuration: { "MediaType": "Images", "Enabled": true }
+      StartLambdaArn: !GetAtt startBatchFaceSearch.Arn
+      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+
+  BatchTextDetectionOperation:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Operation"
+      Name: "batchTextDetection"
+      Type: "Sync"
+      Configuration: { "MediaType": "Images", "Enabled": true }
+      StartLambdaArn: !GetAtt startBatchTextDetection.Arn
+      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+
+  BatchWeaponDetectionhOperation:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Operation"
+      Name: "batchWeaponDetection"
+      Type: "Sync"
+      Configuration: { "MediaType": "Images", "Enabled": true }
+      StartLambdaArn: !GetAtt startBatchWeaponDetection.Arn
+      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+
   MediaconvertOperation:
     Type: Custom::CustomResource
     Properties:
@@ -1413,6 +1629,16 @@ Resources:
   # Export operator names as outputs
 
 Outputs:
+  FrameExtractorOperation:
+    Description: "Operation name of the FrameExtractor Operator"
+    Value: !GetAtt FrameExtractorOperation.Name
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", FrameExtractor]]
+  BatchFaceSearchOperation:
+    Description: "Operation name of rek batch facesearch"
+    Value: !GetAtt BatchFaceSearchOperation.Name
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", BatchFaceSearch]]
   MediaconvertOperation:
     Description: "Operation name of mediaconvert"
     Value: !GetAtt MediaconvertOperation.Name
