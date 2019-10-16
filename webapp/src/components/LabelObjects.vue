@@ -16,6 +16,9 @@
             @click="updateConfidence"
           >
           {{ Confidence }}%<br>
+          <b-form-checkbox v-model="performRedaction" switch name="check-button">
+            Preview Redaction: <b>{{ performRedaction }}</b>
+          </b-form-checkbox>
         </div>
       </b-row>
       <div
@@ -96,6 +99,9 @@
     },
     data() {
       return {
+        performRedaction: false,
+        interval_ms: 1000,
+        erase_on_iteration: 1,
         Confidence: 90,
         high_confidence_data: [],
         elasticsearch_data: [],
@@ -138,6 +144,9 @@
       elasticsearch_data: function() {
         this.chartData();
       },
+      performRedaction: function() {
+       this.updateInterval(); 
+      },
     },
     deactivated: function () {
       console.log('deactivated component:', this.operator);
@@ -160,6 +169,16 @@
       clearInterval(this.canvasRefreshInterval);
     },
     methods: {
+      updateInterval () {
+        if (this.performRedaction) {
+          this.interval_ms = 33
+          this.erase_on_iteration = 30
+        }
+        else {
+          this.interval_ms = 1000
+          this.erase_on_iteration = 1
+        }
+      },
       saveBoxedLabel(label_name){
         if (!this.boxes_available.includes(label_name)) {
           this.boxes_available.push(label_name);
@@ -213,9 +232,9 @@
               // Iterate through all the boxes recorded for the label at this time
               for (let i=0; i<record.Instances.length; i++) {
                 const item = record.Instances[i];
-                // Use time resolution of 0.1 second
-                const timestamp = Math.round(record.Timestamp/100);
-                const boxinfo = {'instance':i, 'timestamp':Math.ceil(record.Timestamp/100), 'name':record.Name, 'confidence':(record.Confidence * 1).toFixed(2), 'x':item.BoundingBox.Left*canvas.width, 'y':item.BoundingBox.Top*canvas.height, 'width':item.BoundingBox.Width*canvas.width, 'height':item.BoundingBox.Height*canvas.height};
+                // Use time resolution of .01 second
+                const timestamp = Math.round(record.Timestamp/10)
+                const boxinfo = {'instance':i, 'timestamp':Math.round(record.Timestamp/10), 'name':record.Name, 'confidence':(record.Confidence * 1).toFixed(2), 'x':item.BoundingBox.Left*canvas.width, 'y':item.BoundingBox.Top*canvas.height, 'width':item.BoundingBox.Width*canvas.width, 'height':item.BoundingBox.Height*canvas.height};
                 // If there are multiple bounding boxes for this instance at this
                 // timestamp, then save them together in an array.
                 if (boxMap.has(timestamp)) {
@@ -260,9 +279,10 @@
           // ...then reset the old canvas refresh interval.
           clearInterval(this.canvasRefreshInterval)
         }
-        // Look for and draw bounding boxes every 100ms
-        const interval_ms = 100;
-        const erase_on_iteration = 2;
+
+        var erase_on_iteration = this.erase_on_iteration
+        var interval_ms = this.interval_ms
+
         var i = 0;
         this.canvasRefreshInterval = setInterval(function () {
           i++;
@@ -271,14 +291,26 @@
             i=0;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
-            ctx.strokeStyle = "red";
-            ctx.font = "15px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillStyle = "red";
+
+            if (this.performRedaction) {
+              // Create gradient
+              //var grd = ctx.createRadialGradient(100, 100, 100, 100, 100, 100);
+              //grd.addColorStop(0, "black");
+              //grd.addColorStop(1, "white");
+              ctx.fillStyle = "black";
+              
+            }
+            else {
+              ctx.strokeStyle = "red";
+              ctx.font = "15px Arial";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillStyle = "red";
+            }
           }
           // Get current player timestamp to the nearest 1/10th second
-          var player_timestamp = Math.round(this.player.currentTime()*10.0);
+          var player_timestamp = Math.round(this.player.currentTime());
+          //console.log('player ts:', player_timestamp)
           // If we have a box for the player's timestamp...
           if (boxMap.has(player_timestamp)) {
             // ...then get a list of box instances
@@ -289,15 +321,28 @@
               // at the current timestamp.
               var boxes = boxMap.get(player_timestamp).filter(box => box.instance === i)
               // Determine which box has the highest confidence
-              var highconfidence = Math.max.apply(Math, boxes.map(function(o) { return o.confidence; }));
-              var drawMe = boxes.find(box => box.confidence === highconfidence.toString())
+              const confidenceThreshold = 60.0
+              //var highconfidence = Math.max.apply(Math, boxes.map(function(o) { return o.confidence; }));
+              boxes.forEach( box => {
+                  console.log('box', box)
+                  var boxConfidence = Math.round(Number(box.confidence))
+                  if (boxConfidence > confidenceThreshold) {
+                    ctx.fillRect(box.x, box.y, box.width, box.height)
+                  }
+                }
+              )
               // Prevent overlapping boxes by drawing only the box
               // with the highest confidence.
-              if (drawMe) {
-                ctx.rect(drawMe.x, drawMe.y, drawMe.width, drawMe.height);
-                // Draw object name and confidence score
-                ctx.fillText(drawMe.name + " (" + drawMe.confidence + "%)", (drawMe.x + drawMe.width / 2), drawMe.y - 10);
-              }
+              // if (drawMe) {
+              //   if (this.performRedaction) {
+              //     ctx.fillRect(drawMe.x, drawMe.y, drawMe.width, drawMe.height)
+              //   }
+              //   else {
+              //     ctx.rect(drawMe.x, drawMe.y, drawMe.width, drawMe.height);
+              //     // Draw object name and confidence score
+              //     ctx.fillText(drawMe.name + " (" + drawMe.confidence + "%)", (drawMe.x + drawMe.width / 2), drawMe.y - 10);
+              //   }
+              // }
             })
           }
           ctx.stroke();

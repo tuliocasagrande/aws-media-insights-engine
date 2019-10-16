@@ -16,6 +16,9 @@
             @click="updateConfidence"
           >
           {{ Confidence }}%<br>
+          <b-form-checkbox v-model="performRedaction" switch name="check-button">
+            Preview Redaction: <b>{{ performRedaction }}</b>
+          </b-form-checkbox>
         </div>
       </b-row>
       <div
@@ -96,6 +99,9 @@
     },
     data() {
       return {
+        performRedaction: false,
+        interval_ms: 1000,
+        erase_on_iteration: 1,
         Confidence: 90,
         high_confidence_data: [],
         elasticsearch_data: [],
@@ -138,6 +144,9 @@
       elasticsearch_data: function() {
         this.chartData();
       },
+      performRedaction: function() {
+       this.updateInterval(); 
+      },
     },
     deactivated: function () {
       console.log('activated component:', this.operator);
@@ -159,6 +168,16 @@
       this.count_labels = 0;
     },
     methods: {
+      updateInterval () {
+        if (this.performRedaction) {
+          this.interval_ms = 5
+          this.erase_on_iteration = 20
+        }
+        else {
+          this.interval_ms = 1000
+          this.erase_on_iteration = 1
+        }
+      },
       saveBoxedLabel(label_name) {
         if (!this.boxes_available.includes(label_name)) {
           this.boxes_available.push(label_name);
@@ -209,14 +228,14 @@
             markers.push({'time': record.Timestamp/1000, 'text': record.Name, 'overlayText': record.Name})
             // Save bounding box info if it exists
             if (record.BoundingBox) {
-              // Use time resolution of 0.1 second
-              const timestamp = Math.round(record.Timestamp/100);
+              // Use time resolution of 1 second
+              const timestamp = Math.round(record.Timestamp/1000);
               if (boxMap.has(timestamp)) {
-                const boxinfo = {'instance':instance++, 'timestamp':Math.ceil(record.Timestamp/100), 'name':record.Name, 'confidence':(record.Confidence * 1).toFixed(2), 'x':record.BoundingBox.Left*canvas.width, 'y':record.BoundingBox.Top*canvas.height, 'width':record.BoundingBox.Width*canvas.width, 'height':record.BoundingBox.Height*canvas.height};
+                const boxinfo = {'instance':instance++, 'timestamp':Math.ceil(record.Timestamp/1000), 'name':record.Name, 'confidence':(record.Confidence * 1).toFixed(2), 'x':record.BoundingBox.Left*canvas.width, 'y':record.BoundingBox.Top*canvas.height, 'width':record.BoundingBox.Width*canvas.width, 'height':record.BoundingBox.Height*canvas.height};
                 boxMap.get(timestamp).push(boxinfo)
               } else {
                 instance = 0;
-                const boxinfo = {'instance':instance++, 'timestamp':Math.ceil(record.Timestamp/100), 'name':record.Name, 'confidence':(record.Confidence * 1).toFixed(2), 'x':record.BoundingBox.Left*canvas.width, 'y':record.BoundingBox.Top*canvas.height, 'width':record.BoundingBox.Width*canvas.width, 'height':record.BoundingBox.Height*canvas.height};
+                const boxinfo = {'instance':instance++, 'timestamp':Math.ceil(record.Timestamp/1000), 'name':record.Name, 'confidence':(record.Confidence * 1).toFixed(2), 'x':record.BoundingBox.Left*canvas.width, 'y':record.BoundingBox.Top*canvas.height, 'width':record.BoundingBox.Width*canvas.width, 'height':record.BoundingBox.Height*canvas.height};
                 boxMap.set(timestamp, [boxinfo])
               }
             }
@@ -290,40 +309,59 @@
         );
       },
       drawBoxes: function(boxMap) {
-        var canvas = document.getElementById('canvas');
-        var ctx = canvas.getContext('2d');
         // If user just clicked a new label...
         if (this.canvasRefreshInterval != undefined) {
           // ...then reset the old canvas refresh interval.
           clearInterval(this.canvasRefreshInterval)
         }
-        // Look for and draw bounding boxes every 100ms
-        const interval_ms = 100;
-        const erase_on_iteration = 2;
+        var erase_on_iteration = this.erase_on_iteration
+        var interval_ms = this.interval_ms
+
         var i = 0;
         this.canvasRefreshInterval = setInterval(function () {
+          var canvas = document.getElementById('canvas');
+          var ctx = canvas.getContext('2d');
           i++;
           // erase old bounding boxes
           if (!this.player.paused() && i % erase_on_iteration === 0) {
             i=0;
+            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
-            ctx.strokeStyle = "red";
-            ctx.font = "15px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillStyle = "red";
+            if (this.performRedaction) {
+              // Create gradient
+              //var grd = ctx.createRadialGradient(100, 100, 100, 100, 100, 100);
+              //grd.addColorStop(0, "black");
+              //grd.addColorStop(1, "white");
+              ctx.fillStyle = "#FFFFFF";
+            }
+            else {
+              ctx.strokeStyle = "red";
+              ctx.font = "15px Arial";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillStyle = "red";
+            }
           }
           // Get current player timestamp to the nearest 1/10th second
-          var player_timestamp = Math.round(this.player.currentTime()*10.0);
+          var player_timestamp = Math.round(this.player.currentTime());
           // If we have a box for the player's timestamp...
           if (boxMap.has(player_timestamp)) {
             var faces = (boxMap.get(player_timestamp));
             // For each box instance...
             faces.forEach( drawMe => {
-              ctx.rect(drawMe.x, drawMe.y, drawMe.width, drawMe.height);
-              // Draw object name and confidence score
-              ctx.fillText(drawMe.name + " (" + drawMe.confidence + "%)", (drawMe.x + drawMe.width / 2), drawMe.y - 10);
+              if (this.performRedaction) {
+                ctx.strokeStyle = "black";
+                ctx.fillStyle = "black";
+                ctx.filter = 'blur(5px) opacity(80%) saturate(30%)';
+                ctx.rect(drawMe.x, drawMe.y, drawMe.width, drawMe.height)
+                ctx.fill();
+              }
+              else {
+                ctx.rect(drawMe.x, drawMe.y, drawMe.width, drawMe.height);
+                // Draw object name and confidence score
+                ctx.fillText(drawMe.name + " (" + drawMe.confidence + "%)", (drawMe.x + drawMe.width / 2), drawMe.y - 10);
+              }
             });
           }
           ctx.stroke();
@@ -361,3 +399,4 @@
     }
   }
 </script>
+
