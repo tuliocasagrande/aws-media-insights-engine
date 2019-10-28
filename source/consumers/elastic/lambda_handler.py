@@ -14,7 +14,7 @@ dataplane_bucket = os.environ['DataplaneBucket']
 s3 = boto3.client('s3')
 
 supported_operators = ["transcribe", "translate", "labeldetection", "celebrityrecognition", "facesearch",
-                       "contentmoderation", "facedetection", "key_phrases", "entities", "key_phrases"]
+                       "contentmoderation", "facedetection", "key_phrases", "entities", "key_phrases", "textract"]
 
 
 def normalize_confidence(confidence_value):

@@ -431,6 +431,43 @@ Resources:
                 Resource: "arn:aws:lambda:*:*:function:*"
                 Effect: "Allow"
 
+  textractRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+      Policies:
+        - PolicyName: "TextractAccess"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  [
+                    "textract:StartDocumentAnalysis",
+                    "textract:GetDocumentAnalysis"
+                  ]
+                Resource: "*"
+                Effect: "Allow"
+              - Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*:*:*"
+                Effect: Allow
+              - Action:
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                Resource: !Sub "arn:aws:s3:::${DataPlaneBucket}/*"
+                Effect: "Allow"
+              - Action: "lambda:InvokeFunction"
+                Resource: !Ref DataPlaneHandlerArn
+                Effect: "Allow"
+
   # Lambda functions
 
   # Comprehend
@@ -1169,6 +1206,54 @@ Resources:
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
           botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
+    # Textract Lambdas
+  StartTextractFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Handler: "start_textract.lambda_handler"
+      Layers:
+        - !Ref "MediaInsightsEnginePython37Layer"
+      Role: !GetAtt "textractRole.Arn"
+      Code:
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        S3Key:
+          !Join [
+            "/",
+            [
+              !FindInMap ["SourceCode", "General", "KeyPrefix"],
+              "start_textract.zip",
+            ],
+          ]
+      Runtime: "python3.7"
+      Environment:
+        Variables:
+          DataplaneEndpoint: !Ref "DataPlaneEndpoint"
+          DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+
+  GetTextractFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Handler: "get_textract.lambda_handler"
+      Layers:
+        - !Ref "MediaInsightsEnginePython37Layer"
+      Role: !GetAtt "textractRole.Arn"
+      Code:
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        S3Key:
+          !Join [
+            "/",
+            [
+              !FindInMap ["SourceCode", "General", "KeyPrefix"],
+              "get_textract.zip",
+            ],
+          ]
+      Runtime: "python3.7"
+      Environment:
+        Variables:
+          DataplaneEndpoint: !Ref "DataPlaneEndpoint"
+          DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+
+
   # Register as operators in the control plane
 
   MediaconvertOperation:
@@ -1430,6 +1515,19 @@ Resources:
       StartLambdaArn: !GetAtt startPersonTracking.Arn
       MonitorLambdaArn: !GetAtt checkPersonTracking.Arn
       StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+  
+  TextractOperation:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Operation"
+      Name: "Textract"
+      Type: "Async"
+      Configuration:
+        { "TranscribeLanguage": "en-US", "MediaType": "Image", "Enabled": true }
+      StartLambdaArn: !GetAtt StartTextractFunction.Arn
+      MonitorLambdaArn: !GetAtt GetTextractFunction.Arn
+      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
 
   # Export operator names as outputs
 
@@ -1521,6 +1619,11 @@ Outputs:
     Value: !GetAtt personTrackingOperation.Name
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", PersonTracking]]
+  TextractOperation:
+    Description: "Operation name of textract"
+    Value: !GetAtt TextractOperation.Name
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", Textract]]
 
   # Rekognition image
   CelebrityRecognitionOperationImage:

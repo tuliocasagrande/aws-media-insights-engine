@@ -36,6 +36,16 @@ Resources:
         - Fn::ImportValue:
             Fn::Sub: "${OperatorLibraryStack}:Mediaconvert"
 
+  TextractStage:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Stage"
+      Name: "TextractStage"
+      Operations:
+        - Fn::ImportValue:
+            Fn::Sub: "${OperatorLibraryStack}:Textract"
+
   defaultAudioStage:
     Type: Custom::CustomResource
     Properties:
@@ -103,5 +113,25 @@ Resources:
           defaultAudioStage: !GetAtt defaultAudioStage.Name,
           defaultTextStage: !GetAtt defaultTextStage.Name,
           defaultTextSynthesisStage: !GetAtt defaultTextSynthesisStage.Name
+        }
+
+  TextractWorkflow:
+    DependsOn:
+      - TextractStage
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Workflow"
+      Name: "TextractWorkflow"
+      StartAt: !GetAtt TextractStage.Name
+      Stages: !Sub
+        - |-
+          {
+            "${TextractStage}":{
+              "End": true
+              }
+          }
+        - {
+          TextractStage: !GetAtt TextractStage.Name
         }
 

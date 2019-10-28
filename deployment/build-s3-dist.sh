@@ -781,6 +781,72 @@ zip -r9 check_person_tracking_status.zip check_person_tracking_status.py
 
 mv -f *.zip $dist_dir/
 
+
+echo "------------------------------------------------------------------------------"
+echo "Textract  Operations"
+echo "------------------------------------------------------------------------------"
+
+echo "Building Textract functions"
+cd "$source_dir/operators/textract" || exit
+
+[ -e dist ] && rm -r dist
+mkdir -p dist
+
+[ -e package ] && rm -r package
+mkdir -p package
+
+echo "create requirements for lambda"
+
+#pipreqs . --force
+
+# Make lambda package
+
+pushd package
+echo "create lambda package"
+
+# Handle distutils install errors
+
+touch ./setup.cfg
+
+echo "[install]" > ./setup.cfg
+echo "prefix= " >> ./setup.cfg
+
+# Try and handle failure if pip version mismatch
+if [ -x "$(command -v pip)" ]; then
+  pip install -r ../requirements.txt --target .
+
+elif [ -x "$(command -v pip3)" ]; then
+  echo "pip not found, trying with pip3"
+  pip3 install -r ../requirements.txt --target .
+
+elif ! [ -x "$(command -v pip)" ] && ! [ -x "$(command -v pip3)" ]; then
+ echo "No version of pip installed. This script requires pip. Cleaning up and exiting."
+ exit 1
+fi
+
+if ! [ -d ../dist/start_textract.zip ]; then
+  zip -r9 ../dist/start_textract.zip .
+
+elif [ -d ../dist/start_textract.zip ]; then
+  echo "Package already present"
+fi
+
+if ! [ -d ../dist/get_textract.zip ]; then
+  zip -r9 ../dist/get_textract.zip .
+
+elif [ -d ../dist/get_textract.zip ]; then
+  echo "Package already present"
+fi
+
+popd
+
+zip -g dist/start_textract.zip start_textract.py awsmie.py
+zip -g dist/get_textract.zip get_textract.py awsmie.py
+
+cp "./dist/start_textract.zip" "$dist_dir/start_textract.zip"
+cp "./dist/get_textract.zip" "$dist_dir/get_textract.zip"
+
+
 echo "------------------------------------------------------------------------------"
 echo "DDB Stream Function"
 echo "------------------------------------------------------------------------------"
