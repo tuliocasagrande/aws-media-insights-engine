@@ -68,6 +68,33 @@ Resources:
               - Action: "s3:*"
                 Resource: "*"
                 Effect: "Allow"
+  
+  # genericDataLookupLambdaRole:
+  #   Type: "AWS::IAM::Role"
+  #   Properties:
+  #     ManagedPolicyArns:
+  #       - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  #     AssumeRolePolicyDocument:
+  #       Version: "2012-10-17"
+  #       Statement:
+  #         - Action:
+  #             - "sts:AssumeRole"
+  #           Effect: "Allow"
+  #           Principal:
+  #             Service: "lambda.amazonaws.com"
+  #     Policies:
+  #       - PolicyName: "GenericDataLookupLambdaAccess"
+  #         PolicyDocument:
+  #           Version: "2012-10-17"
+  #           Statement:
+  #             - Action:
+  #                 - "s3:GetObject"
+  #                 - "s3:PutObject"
+  #               Resource: !Sub "arn:aws:s3:::${DataPlaneBucket}/*"
+  #               Effect: "Allow"
+  #             - Action: "lambda:InvokeFunction"
+  #               Resource: !Ref DataPlaneHandlerArn
+  #               Effect: "Allow"
 
   mediaConvertS3Role:
     Type: "AWS::IAM::Role"
@@ -519,6 +546,7 @@ Resources:
           OPERATOR_NAME: "comprehendStartKeyPhrases"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           comprehendRole: !GetAtt comprehendS3Role.Arn
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   getKeyPhrases:
     Type: "AWS::Lambda::Function"
@@ -544,6 +572,7 @@ Resources:
           OPERATOR_NAME: "comprehendGetKeyPhrases"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           comprehendRole: !GetAtt comprehendS3Role.Arn
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   startEntityDetection:
     Type: "AWS::Lambda::Function"
@@ -569,6 +598,7 @@ Resources:
           OPERATOR_NAME: "comprehendStartEntityDetection"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           comprehendRole: !GetAtt comprehendS3Role.Arn
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   getEntityDetection:
     Type: "AWS::Lambda::Function"
@@ -594,6 +624,7 @@ Resources:
           OPERATOR_NAME: "comprehendEntityDetection"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           comprehendRole: !GetAtt comprehendS3Role.Arn
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
 
   # Rekognition
@@ -725,6 +756,7 @@ Resources:
           OPERATOR_NAME: "celebrityRecognition"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   checkCelebrityRecognition:
     Type: "AWS::Lambda::Function"
@@ -751,6 +783,7 @@ Resources:
           OPERATOR_NAME: "celebrityRecognition"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   startContentModeration:
     Type: "AWS::Lambda::Function"
@@ -778,6 +811,7 @@ Resources:
           OPERATOR_NAME: "contentModeration"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   checkContentModeration:
     Type: "AWS::Lambda::Function"
@@ -804,6 +838,7 @@ Resources:
           OPERATOR_NAME: "contentModeration"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   startFaceDetection:
     Type: "AWS::Lambda::Function"
@@ -831,6 +866,7 @@ Resources:
           OPERATOR_NAME: "faceDetection"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   checkFaceDetection:
     Type: "AWS::Lambda::Function"
@@ -857,6 +893,7 @@ Resources:
           OPERATOR_NAME: "faceDetection"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   startFaceSearch:
     Type: "AWS::Lambda::Function"
@@ -884,6 +921,7 @@ Resources:
           OPERATOR_NAME: "faceSearch"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   checkFaceSearch:
     Type: "AWS::Lambda::Function"
@@ -910,6 +948,7 @@ Resources:
           OPERATOR_NAME: "faceSearch"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   startLabelDetection:
     Type: "AWS::Lambda::Function"
@@ -937,6 +976,7 @@ Resources:
           OPERATOR_NAME: "labelDetection"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   checkLabelDetection:
     Type: "AWS::Lambda::Function"
@@ -963,6 +1003,7 @@ Resources:
           OPERATOR_NAME: "labelDetection"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   startPersonTracking:
     Type: "AWS::Lambda::Function"
@@ -988,6 +1029,7 @@ Resources:
           REKOGNITION_SNS_TOPIC_ARN: !Ref "snsRekognitionTopic"
           REKOGNITION_ROLE_ARN: !GetAtt "rekognitionRole.Arn"
           OPERATOR_NAME: "personTracking"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   checkPersonTracking:
     Type: "AWS::Lambda::Function"
@@ -1014,6 +1056,7 @@ Resources:
           OPERATOR_NAME: "personTracking"
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   # Mediaconvert Lambdas
 
@@ -1088,6 +1131,7 @@ Resources:
         Variables:
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   CheckTranscribeFunction:
     Type: "AWS::Lambda::Function"
@@ -1111,6 +1155,7 @@ Resources:
         Variables:
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   # Create Web Captions Lambda
 
@@ -1260,6 +1305,7 @@ Resources:
         Variables:
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   # Polly Lambdas
 
@@ -1285,6 +1331,7 @@ Resources:
         Variables:
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   CheckPollyFunction:
     Type: "AWS::Lambda::Function"
@@ -1308,6 +1355,7 @@ Resources:
         Variables:
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   # Register as operators in the control plane
 
@@ -1355,7 +1403,7 @@ Resources:
       StartLambdaArn: !GetAtt startBatchTextDetection.Arn
       StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
 
-  BatchWeaponDetectionhOperation:
+  BatchWeaponDetectionOperation:
     Type: Custom::CustomResource
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
@@ -1365,6 +1413,17 @@ Resources:
       Configuration: { "MediaType": "Images", "Enabled": true }
       StartLambdaArn: !GetAtt startBatchWeaponDetection.Arn
       StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      
+  # GenericDataLookupOperation:
+  #   Type: Custom::CustomResource
+  #   Properties:
+  #     ServiceToken: !Ref WorkflowCustomResourceArn
+  #     ResourceType: "Operation"
+  #     Name: "GenericDataLookup"
+  #     Type: "Sync"
+  #     Configuration: { "MediaType": "Video", "Enabled": true }
+  #     StartLambdaArn: !GetAtt startGenericDataLookup.Arn
+  #     StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
 
   MediaconvertOperation:
     Type: Custom::CustomResource
@@ -1639,6 +1698,11 @@ Outputs:
     Value: !GetAtt BatchFaceSearchOperation.Name
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", BatchFaceSearch]]
+  # GenericDataLookupOperation:
+  #   Description: "Operation name of GenericDataLookup"
+  #   Value: !GetAtt GenericDataLookupOperation.Name
+  #   Export:
+  #     Name: !Join [":", [!Ref "AWS::StackName", GenericDataLookup]]
   MediaconvertOperation:
     Description: "Operation name of mediaconvert"
     Value: !GetAtt MediaconvertOperation.Name
