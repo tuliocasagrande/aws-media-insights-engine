@@ -33,6 +33,9 @@ Parameters:
   MediaInsightsEngineCv2PythonLayer:
     Type: String
     Description: "Arn of the Media Insights python cv2 layer"
+  StepFuctionRoleArn:
+    Type: String
+    Description: "Arn of the sfn lambda execution role"
 
 Resources:
   # SNS topic for storing the output of async Rekognition jobs:
@@ -472,33 +475,13 @@ Resources:
                 Resource: !Ref "snsRekognitionTopic"
                 Effect: "Allow"
 
-  StepFunctionRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Action: "sts:AssumeRole"
-            Effect: "Allow"
-            Principal:
-              Service: "states.amazonaws.com"
-      Policies:
-        - PolicyName: "MieSfnLambdaAccess"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              # TODO: Security - Need to scope this down (no good answer for this yet)
-              - Action: "lambda:InvokeFunction"
-                Resource: "arn:aws:lambda:*:*:function:*"
-                Effect: "Allow"
-
   # Lambda functions
   # Frame extractor
   FrameExtractorFunction:
     Type: "AWS::Lambda::Function"
     Properties:
       MemorySize: 512
-      Timeout: 120
+      Timeout: 600
       Handler: "frame_extractor.lambda_handler"
       Layers:
         - !Ref "MediaInsightsEnginePython36Layer"
@@ -632,8 +615,8 @@ Resources:
   startBatchContentModeration:
     Type: "AWS::Lambda::Function"
     Properties:
-      MemorySize: 512
-      Timeout: 600
+      MemorySize: 2048
+      Timeout: 900
       Handler: "start_batch_content_moderation.lambda_handler"
       Layers:
         - !Ref "MediaInsightsEnginePython37Layer"
@@ -657,12 +640,11 @@ Resources:
   startBatchFaceSearch:
     Type: "AWS::Lambda::Function"
     Properties:
-      MemorySize: 512
-      Timeout: 600
+      MemorySize: 2048
+      Timeout: 900
       Handler: "start_batch_face_search.lambda_handler"
       Layers:
         - !Ref "MediaInsightsEnginePython37Layer"
-        - !Ref "MediaInsightsEngineCv2PythonLayer"
       Role: !GetAtt "rekognitionRole.Arn"
       Code:
         S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
@@ -674,7 +656,7 @@ Resources:
             "start_batch_face_search.zip",
             ],
           ]
-      Runtime: "python3.6"
+      Runtime: "python3.7"
       Environment:
         Variables:
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
@@ -683,8 +665,8 @@ Resources:
   startBatchTextDetection:
     Type: "AWS::Lambda::Function"
     Properties:
-      MemorySize: 512
-      Timeout: 600
+      MemorySize: 2048
+      Timeout: 900
       Handler: "start_batch_text_detection.lambda_handler"
       Layers:
         - !Ref "MediaInsightsEnginePython37Layer"
@@ -708,8 +690,8 @@ Resources:
   startBatchWeaponDetection:
     Type: "AWS::Lambda::Function"
     Properties:
-      MemorySize: 512
-      Timeout: 600
+      MemorySize: 2048
+      Timeout: 900
       Handler: "start_batch_weapon_detection.lambda_handler"
       Layers:
         - !Ref "MediaInsightsEnginePython37Layer"
@@ -1368,7 +1350,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt FrameExtractorFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   BatchContentModerationOperation:
     Type: Custom::CustomResource
@@ -1379,7 +1361,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Images", "Enabled": true }
       StartLambdaArn: !GetAtt startBatchContentModeration.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   BatchFaceSearchOperation:
     Type: Custom::CustomResource
@@ -1390,7 +1372,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Images", "Enabled": true }
       StartLambdaArn: !GetAtt startBatchFaceSearch.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   BatchTextDetectionOperation:
     Type: Custom::CustomResource
@@ -1401,7 +1383,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Images", "Enabled": true }
       StartLambdaArn: !GetAtt startBatchTextDetection.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   BatchWeaponDetectionOperation:
     Type: Custom::CustomResource
@@ -1412,7 +1394,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Images", "Enabled": true }
       StartLambdaArn: !GetAtt startBatchWeaponDetection.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
       
   # GenericDataLookupOperation:
   #   Type: Custom::CustomResource
@@ -1423,7 +1405,7 @@ Resources:
   #     Type: "Sync"
   #     Configuration: { "MediaType": "Video", "Enabled": true }
   #     StartLambdaArn: !GetAtt startGenericDataLookup.Arn
-  #     StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+  #     StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   MediaconvertOperation:
     Type: Custom::CustomResource
@@ -1435,7 +1417,7 @@ Resources:
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt StartMediaConvertFunction.Arn
       MonitorLambdaArn: !GetAtt CheckMediaConvertFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   TranscribeOperation:
     Type: Custom::CustomResource
@@ -1448,7 +1430,7 @@ Resources:
         { "TranscribeLanguage": "en-US", "MediaType": "Audio", "Enabled": true }
       StartLambdaArn: !GetAtt StartTranscribeFunction.Arn
       MonitorLambdaArn: !GetAtt CheckTranscribeFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   WebCaptionsOperation:
     Type: Custom::CustomResource
@@ -1459,7 +1441,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt WebCaptionsFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   CreateSRTCaptionsOperation:
     Type: Custom::CustomResource
@@ -1470,7 +1452,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt CreateSRTCaptionsFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   CreateVTTCaptionsOperation:
     Type: Custom::CustomResource
@@ -1481,7 +1463,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt CreateVTTCaptionsFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   WebToSRTCaptionsOperation:
     Type: Custom::CustomResource
@@ -1492,7 +1474,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "MetadataOnly", "Enabled": true }
       StartLambdaArn: !GetAtt WebToSRTCaptionsFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   WebToVTTCaptionsOperation:
     Type: Custom::CustomResource
@@ -1503,7 +1485,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "MetadataOnly", "Enabled": true }
       StartLambdaArn: !GetAtt WebToVTTCaptionsFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   TranslateOperation:
     Type: Custom::CustomResource
@@ -1520,7 +1502,7 @@ Resources:
           "SourceLanguageCode": "en",
         }
       StartLambdaArn: !GetAtt TranslateFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   PollyOperation:
     Type: Custom::CustomResource
@@ -1532,7 +1514,7 @@ Resources:
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt StartPollyFunction.Arn
       MonitorLambdaArn: !GetAtt CheckPollyFunction.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   comprehendPhrasesOperation:
     Type: Custom::CustomResource
@@ -1544,7 +1526,7 @@ Resources:
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt startKeyPhrases.Arn
       MonitorLambdaArn: !GetAtt getKeyPhrases.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   comprehendEntitiesOperation:
     Type: Custom::CustomResource
@@ -1556,7 +1538,7 @@ Resources:
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt startEntityDetection.Arn
       MonitorLambdaArn: !GetAtt getEntityDetection.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   celebrityRecognitionOperation:
     Type: Custom::CustomResource
@@ -1568,7 +1550,7 @@ Resources:
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startCelebrityRecognition.Arn
       MonitorLambdaArn: !GetAtt checkCelebrityRecognition.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   celebrityRecognitionOperationImage:
     Type: Custom::CustomResource
@@ -1579,7 +1561,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startCelebrityRecognition.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   contentModerationOperation:
     Type: Custom::CustomResource
@@ -1591,7 +1573,7 @@ Resources:
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startContentModeration.Arn
       MonitorLambdaArn: !GetAtt checkContentModeration.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   contentModerationOperationImage:
     Type: Custom::CustomResource
@@ -1602,7 +1584,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startContentModeration.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   faceDetectionOperation:
     Type: Custom::CustomResource
@@ -1614,7 +1596,7 @@ Resources:
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startFaceDetection.Arn
       MonitorLambdaArn: !GetAtt checkFaceDetection.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   faceDetectionOperationImage:
     Type: Custom::CustomResource
@@ -1625,7 +1607,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startFaceDetection.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   faceSearchOperation:
     Type: Custom::CustomResource
@@ -1637,7 +1619,7 @@ Resources:
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startFaceSearch.Arn
       MonitorLambdaArn: !GetAtt checkFaceSearch.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   faceSearchOperationImage:
     Type: Custom::CustomResource
@@ -1648,7 +1630,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startFaceSearch.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   labelDetectionOperation:
     Type: Custom::CustomResource
@@ -1660,7 +1642,7 @@ Resources:
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startLabelDetection.Arn
       MonitorLambdaArn: !GetAtt checkLabelDetection.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   labelDetectionOperationImage:
     Type: Custom::CustomResource
@@ -1671,7 +1653,7 @@ Resources:
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startLabelDetection.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   personTrackingOperation:
     Type: Custom::CustomResource
@@ -1683,7 +1665,7 @@ Resources:
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startPersonTracking.Arn
       MonitorLambdaArn: !GetAtt checkPersonTracking.Arn
-      StateMachineExecutionRoleArn: !GetAtt StepFunctionRole.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   # Export operator names as outputs
 
@@ -1698,6 +1680,11 @@ Outputs:
     Value: !GetAtt BatchFaceSearchOperation.Name
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", BatchFaceSearch]]
+  BatchContentModerationOperation:
+    Description: "Operation name of rek batch content moderation"
+    Value: !GetAtt BatchContentModerationOperation.Name
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", BatchContentModeration]]
   # GenericDataLookupOperation:
   #   Description: "Operation name of GenericDataLookup"
   #   Value: !GetAtt GenericDataLookupOperation.Name

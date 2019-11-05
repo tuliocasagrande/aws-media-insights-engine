@@ -460,7 +460,7 @@ Resources:
             Principal:
               Service: "states.amazonaws.com"
       Policies:
-        - PolicyName: "TestSFNLambdaAccess"
+        - PolicyName: "MieSFNLambdaAccess"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -1249,6 +1249,7 @@ Resources:
         MediaInsightsEnginePython37Layer: !Ref MediaInsightsEnginePython37Layer
         MediaInsightsEnginePython36Layer: !Ref MediaInsightsEnginePython36Layer
         MediaInsightsEngineCv2PythonLayer: !Ref MediaInsightsEngineCv2PythonLayer
+        StepFuctionRoleArn: !GetAtt StepFunctionRole.Arn
 
   TestWorkflow:
     Condition: DeployTestWorkflowCondition

@@ -85,33 +85,29 @@ def lambda_handler(event, context):
                 if len(frame_result)>0: chunk_result.append(frame_result)
 
 
-            response = {'metadata': chunk_details['metadata'],
-                        'frames_result': chunk_result}
+        response = {'metadata': chunk_details['metadata'],
+                    'frames_result': chunk_result}
 
+        dataplane = DataPlane()
+        metadata_upload = dataplane.store_asset_metadata(asset_id, 'batchWeaponDetection', workflow_id, response)
+
+        if metadata_upload["Status"] == "Success":
+            print("Uploaded metadata for asset: {asset}".format(asset=asset_id))
             output_object.update_workflow_status("Complete")
             output_object.add_workflow_metadata(AssetId=asset_id, WorkflowExecutionId=workflow_id)
-
-            dataplane = DataPlane()
-            metadata_upload = dataplane.store_asset_metadata(asset_id, 'batchWeaponDetection', workflow_id, response)
-            print("This is my response data:{}".format(response))
-            print(metadata_upload)
-
-            if metadata_upload["Status"] == "Success":
-                print("Uploaded metadata for asset: {asset}".format(asset=asset_id))
-            elif metadata_upload["Status"] == "Failed":
-                output_object.update_workflow_status("Error")
-                output_object.add_workflow_metadata(
-                    BatchWeaponDetection="Unable to upload metadata for asset: {asset}".format(asset=asset_id))
-                raise MasExecutionError(output_object.return_output_object())
-            else:
-                output_object.update_workflow_status("Error")
-                output_object.add_workflow_metadata(
-                    BatchWeaponDetection="Unable to upload metadata for asset: {asset}".format(asset=asset_id))
-                raise MasExecutionError(output_object.return_output_object())
             return output_object.return_output_object()
-
-        else:
-            print("ERROR: invalid file type")
+        elif metadata_upload["Status"] == "Failed":
             output_object.update_workflow_status("Error")
-            output_object.add_workflow_metadata(BatchWeaponDetection="Not a valid file type")
+            output_object.add_workflow_metadata(
+                BatchWeaponDetection="Unable to upload metadata for asset: {asset}".format(asset=asset_id))
             raise MasExecutionError(output_object.return_output_object())
+        else:
+            output_object.update_workflow_status("Error")
+            output_object.add_workflow_metadata(
+                BatchWeaponDetection="Unable to upload metadata for asset: {asset}".format(asset=asset_id))
+            raise MasExecutionError(output_object.return_output_object())
+    else:
+        print("ERROR: invalid file type")
+        output_object.update_workflow_status("Error")
+        output_object.add_workflow_metadata(BatchWeaponDetection="Not a valid file type")
+        raise MasExecutionError(output_object.return_output_object())
