@@ -1685,6 +1685,16 @@ Outputs:
     Value: !GetAtt BatchContentModerationOperation.Name
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", BatchContentModeration]]
+  BatchWeaponDetectionOperation:
+    Description: "Operation name of rek batch weapon detection"
+    Value: !GetAtt BatchWeaponDetectionOperation.Name
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", BatchWeaponDetection]]
+  BatchTextDetectionOperation:
+    Description: "Operation name of rek batch text detection"
+    Value: !GetAtt BatchTextDetectionOperation.Name
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", BatchTextDetection]]
   # GenericDataLookupOperation:
   #   Description: "Operation name of GenericDataLookup"
   #   Value: !GetAtt GenericDataLookupOperation.Name
