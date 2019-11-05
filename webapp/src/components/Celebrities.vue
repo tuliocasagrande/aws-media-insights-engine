@@ -89,6 +89,7 @@
 <script>
   import { mapState } from 'vuex'
   import Loading from '@/components/Loading.vue'
+  import getRuntimeConfig from '@/static/runtimeConfig.json'
 
   export default {
     name: "Celebrities",
@@ -233,6 +234,7 @@
                   'width': record.BoundingBox.Width * canvas.width,
                   'height': record.BoundingBox.Height * canvas.height
                 };
+                // For images we add bounding box values to boxMap with i++ as the key.
                 boxMap.set(i++, [boxinfo])
               } else {
                 // Use time resolution of 0.1 second
@@ -247,6 +249,7 @@
                   'width': record.BoundingBox.Width * canvas.width,
                   'height': record.BoundingBox.Height * canvas.height
                 };
+                // For videos we add bounding box values to boxMap with timestamp as the key.
                 boxMap.set(timestamp, [boxinfo])
               }
             }
@@ -263,7 +266,7 @@
         }
       },
       fetchAssetData () {
-        fetch(process.env.VUE_APP_ELASTICSEARCH_ENDPOINT+'/_search?q=AssetId:'+this.$route.params.asset_id+' Confidence:>'+this.Confidence+' Operator:'+this.operator+'&default_operator=AND&size=10000', {
+        fetch(getRuntimeConfig.ELASTICSEARCH_ENDPOINT+'/_search?q=AssetId:'+this.$route.params.asset_id+' Confidence:>'+this.Confidence+' Operator:'+this.operator+'&default_operator=AND&size=10000', {
           method: 'get'
         }).then(response =>
           response.json().then(data => ({

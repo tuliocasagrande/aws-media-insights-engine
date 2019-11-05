@@ -1,3 +1,5 @@
+import getRuntimeConfig from '@/static/runtimeConfig.json'
+
 export default {
   getSignedURL(file, config) {
     return new Promise((resolve, reject) => {
@@ -24,7 +26,7 @@ export default {
       if (config.withCredentials === true) {
         request.withCredentials = true;
       }
-      request.send("{\"S3Bucket\":\""+process.env.VUE_APP_DATAPLANE_BUCKET+"\",\"S3Key\":\""+file.name+"\"}");
+      request.send("{\"S3Bucket\":\""+getRuntimeConfig.DATAPLANE_BUCKET+"\",\"S3Key\":\""+file.name+"\"}");
     });
   },
   sendFile(file, config) {

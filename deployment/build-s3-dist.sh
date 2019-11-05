@@ -1240,7 +1240,6 @@ do
 echo "We are uploading the MIE web app"
 
 aws s3 cp $webapp_dir/dist s3://$bucket/media-insights-solution/$2/code/website --recursive --profile $profile
-aws s3 cp $webapp_dir/.env s3://$bucket/media-insights-solution/$2/code/website/.env --profile $profile
 
 #echo "We are uploading the transcriber web app"
 #aws s3 cp $transcriber_dir/web s3://$bucket/media-insights-solution/$2/code/transcriberwebsite --recursive --profile $profile

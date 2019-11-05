@@ -24,6 +24,8 @@
 </template>
 
 <script>
+  //import getRuntimeConfig from '@/static/runtimeConfig.json'
+
 export default {
   name: "Translation",
   data() {
@@ -50,7 +52,7 @@ export default {
   methods: {
     fetchAssetData () {
       const vm = this;
-      fetch(process.env.VUE_APP_ELASTICSEARCH_ENDPOINT+'/_search?q=AssetId:'+this.$route.params.asset_id+' _index:mietranslation&default_operator=AND&size=10000', {
+      fetch(getRuntimeConfig.ELASTICSEARCH_ENDPOINT+'/_search?q=AssetId:'+this.$route.params.asset_id+' _index:mietranslation&default_operator=AND&size=10000', {
         method: 'get'
       }).then(response =>
         response.json().then(data => ({

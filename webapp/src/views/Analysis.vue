@@ -133,6 +133,7 @@
   import MediaSummaryBox from '@/components/MediaSummaryBox.vue'
   import LineChart from '@/components/LineChart.vue'
   import { mapState } from 'vuex'
+  import getRuntimeConfig from '@/static/runtimeConfig.json'
 
   export default {
     name: 'Home',
@@ -248,7 +249,7 @@
             return accessToken
           })
           var asset_id = this.$route.params.asset_id;
-          fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT+'/metadata/'+asset_id, {
+          fetch(getRuntimeConfig.DATAPLANE_API_ENDPOINT+'/metadata/'+asset_id, {
             method: 'get',
             headers: {
               'Authorization': token
@@ -280,7 +281,7 @@
         var bucket = this.s3_uri.split("/")[2];
         var key = this.s3_uri.split(this.s3_uri.split("/")[2] + '/')[1];
         // get URL to video file in S3
-        fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT + '/download', {
+        fetch(getRuntimeConfig.DATAPLANE_API_ENDPOINT + '/download', {
           method: 'POST',
           mode: 'cors',
           headers: {
@@ -298,7 +299,7 @@
         this.$store.commit('updateAssetId', this.$route.params.asset_id);
       },
       checkServerAccess () {
-        fetch(process.env.VUE_APP_ELASTICSEARCH_ENDPOINT, {
+        fetch(getRuntimeConfig.ELASTICSEARCH_ENDPOINT, {
           method: 'get'
         }).then(response =>
           response.json().then(data => ({

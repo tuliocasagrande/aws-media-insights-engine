@@ -2,7 +2,6 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 import Analysis from '@/views/Analysis.vue'
 import Upload from '@/views/UploadToAWSS3.vue'
-import Run from '@/views/Run.vue'
 import Collection from '@/views/Collection.vue'
 import Login from '@/views/Login.vue'
 
@@ -28,12 +27,6 @@ const router = new VueRouter({
       path: '/analysis/:asset_id',
       name: 'analysis',
       component: Analysis,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/run/:asset_id',
-      name: 'run',
-      component: Run,
       meta: { requiresAuth: true }
     },
     {

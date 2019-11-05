@@ -127,6 +127,7 @@
   import Header from '@/components/Header.vue'
   import VideoThumbnail from '@/components/VideoThumbnail.vue'
   import Loading from '@/components/Loading.vue'
+  import getRuntimeConfig from '@/static/runtimeConfig.json'
 
   export default {
     name: "Run",
@@ -192,6 +193,14 @@
       }
     },
     created: function () {
+      fetch("/runtimeConfig.json")
+        .then(r => r.json())
+        .then(json => {
+            console.log(json);
+          },
+          response => {
+            console.log('Error loading runtimeConfig.json:', response)
+          });
       this.fetchAssetList();
     },
     methods: {
@@ -202,7 +211,7 @@
         })
         const vm = this;
         console.log("Deleting asset_id " + asset_id)
-        fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT+'/metadata/'+asset_id, {
+        fetch(getRuntimeConfig.DATAPLANE_API_ENDPOINT+'/metadata/'+asset_id, {
           method: 'delete',
           headers: {
             'Authorization': token
@@ -246,7 +255,7 @@
             }
           }
         };
-        fetch(process.env.VUE_APP_ELASTICSEARCH_ENDPOINT+'/_search?q='+user_defined_query+'&_source=AssetId', {
+        fetch(getRuntimeConfig.ELASTICSEARCH_ENDPOINT+'/_search?q='+user_defined_query+'&_source=AssetId', {
           method: 'post',
           body: JSON.stringify(data),
           headers: {'Content-Type': 'application/json'}
@@ -268,7 +277,7 @@
               res.data.aggregations.distinct_assets.buckets.forEach( function (item) {
                 // Display only the matching assets in the collection view.
                 var assetid = item.key
-                fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT+'/metadata/'+assetid, {
+                fetch(getRuntimeConfig.DATAPLANE_API_ENDPOINT+'/metadata/'+assetid, {
                   method: 'get',
                   headers: {
                     'Authorization': token
@@ -287,7 +296,7 @@
                       thumbnail_s3_key = 'private/assets/' + assetid + '/' + filename.substring(0, filename.lastIndexOf(".")) + '_thumbnail.0000001.jpg';
                     }
                     // get URL to thumbnail file in S3
-                    fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT + '/download', {
+                    fetch(getRuntimeConfig.DATAPLANE_API_ENDPOINT + '/download', {
                       method: 'POST',
                       mode: 'cors',
                       headers: {
@@ -299,7 +308,7 @@
                       response.text()).then((data) => {
 
                       // get workflow status for each asset
-                      fetch(process.env.VUE_APP_WORKFLOW_API_ENDPOINT+'workflow/execution/asset/'+assetid, {
+                      fetch(getRuntimeConfig.WORKFLOW_API_ENDPOINT+'workflow/execution/asset/'+assetid, {
                         method: 'get',
                         headers: {
                           'Content-Type': 'application/json',
@@ -354,7 +363,7 @@
         // This function gets the list of assets and their file location in S3
         var vm = this;
         // Get the list of assets from the dataplane
-        fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT+'/metadata', {
+        fetch(getRuntimeConfig.DATAPLANE_API_ENDPOINT+'/metadata', {
           method: 'get',
           headers: {
             'Authorization': token
@@ -372,7 +381,7 @@
 
             res.data.assets.forEach( function (assetid) {
               // For each asset make another request to the dataplane to get its file location in S3
-              fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT+'/metadata/'+assetid, {
+              fetch(getRuntimeConfig.DATAPLANE_API_ENDPOINT+'/metadata/'+assetid, {
                 method: 'get',
                 headers: {
                   'Authorization': token
@@ -391,7 +400,7 @@
                     thumbnail_s3_key = 'private/assets/' + assetid + '/' + filename.substring(0, filename.lastIndexOf(".")) + '_thumbnail.0000001.jpg';
                   }
                   // get URL to thumbnail file in S3
-                  fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT + '/download', {
+                  fetch(getRuntimeConfig.DATAPLANE_API_ENDPOINT + '/download', {
                     method: 'POST',
                     mode: 'cors',
                     headers: {
@@ -403,7 +412,7 @@
                     response.text()).then((data) => {
 
                     // get workflow status for each asset
-                    fetch(process.env.VUE_APP_WORKFLOW_API_ENDPOINT+'workflow/execution/asset/'+assetid, {
+                    fetch(getRuntimeConfig.WORKFLOW_API_ENDPOINT+'workflow/execution/asset/'+assetid, {
                       method: 'get',
                       headers: {
                       'Authorization': token

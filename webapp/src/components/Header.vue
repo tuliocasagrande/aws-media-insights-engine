@@ -57,13 +57,14 @@
 
 <script>
 import { AmplifyEventBus } from "aws-amplify-vue";
+  //import getRuntimeConfig from '@/static/runtimeConfig.json'
 
 export default {
   name: 'Header',
   props: ['isCollectionActive', 'isUploadActive'],
   data() {
     return {
-      elasticsearch_endpoint: process.env.VUE_APP_ELASTICSEARCH_ENDPOINT,
+      elasticsearch_endpoint: getRuntimeConfig.ELASTICSEARCH_ENDPOINT,
       signedIn: false
     }
   },

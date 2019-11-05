@@ -88,6 +88,7 @@
 <script>
   import Loading from '@/components/Loading.vue'
   import { mapState } from 'vuex'
+  import getRuntimeConfig from '@/static/runtimeConfig.json'
 
   export default {
     name: "LabelObjects",
@@ -234,6 +235,7 @@
                     'width': item.BoundingBox.Width * canvas.width,
                     'height': item.BoundingBox.Height * canvas.height
                   };
+                  // For images we add bounding box values to boxMap with i as the key.
                   boxMap.set(i, [boxinfo])
                 } else {
                   // Use time resolution of 0.1 second
@@ -244,6 +246,7 @@
                   if (boxMap.has(timestamp)) {
                     boxMap.get(timestamp).push(boxinfo)
                   } else {
+                    // For videos we add bounding box values to boxMap with timestamp as the key.
                     boxMap.set(timestamp, [boxinfo])
                   }
                 }
@@ -262,7 +265,7 @@
         }
       },
       fetchAssetData () {
-        fetch(process.env.VUE_APP_ELASTICSEARCH_ENDPOINT+'/_search?q=AssetId:'+this.$route.params.asset_id+' Confidence:>'+this.Confidence+' Operator:'+this.operator+'&default_operator=AND&size=10000', {
+        fetch(getRuntimeConfig.ELASTICSEARCH_ENDPOINT+'/_search?q=AssetId:'+this.$route.params.asset_id+' Confidence:>'+this.Confidence+' Operator:'+this.operator+'&default_operator=AND&size=10000', {
           method: 'get'
         }).then(response =>
           response.json().then(data => ({

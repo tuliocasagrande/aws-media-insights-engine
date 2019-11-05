@@ -116,6 +116,7 @@
 <script>
   import vueDropzone from '@/components/vue-dropzone.vue';
   import Header from '@/components/Header.vue'
+  import getRuntimeConfig from '@/static/runtimeConfig.json'
 
   export default {
     components: {
@@ -199,10 +200,10 @@
         executed_assets: [],
         workflow_status_polling: null,
         description: "Click start to begin. Media analysis status will be shown after upload completes.",
-        signurl: process.env.VUE_APP_DATAPLANE_API_ENDPOINT + '/upload',
-        s3_destination: 's3://' + process.env.VUE_APP_DATAPLANE_BUCKET,
+        signurl: getRuntimeConfig.DATAPLANE_API_ENDPOINT + '/upload',
+        s3_destination: 's3://' + getRuntimeConfig.DATAPLANE_BUCKET,
         dropzoneOptions: {
-          url: 'https://' + process.env.VUE_APP_DATAPLANE_BUCKET + '.s3.amazonaws.com',
+          url: 'https://' + getRuntimeConfig.DATAPLANE_BUCKET + '.s3.amazonaws.com',
           thumbnailWidth: 200,
           addRemoveLinks: true,
           autoProcessQueue: false,
@@ -303,7 +304,7 @@
               },
               "GenericDataLookup": {
                 "Enabled": this.enabledOperators.includes("genericDataLookup"),
-                "Bucket": process.env.VUE_APP_DATAPLANE_BUCKET,
+                "Bucket": getRuntimeConfig.DATAPLANE_BUCKET,
                 "Key": this.genericDataFilename==="" ? "undefined" : this.genericDataFilename
               },
             },
@@ -389,7 +390,7 @@
             "Input": {
               "Media": {
                 "Image": {
-                  "S3Bucket": process.env.VUE_APP_DATAPLANE_BUCKET,
+                  "S3Bucket": getRuntimeConfig.DATAPLANE_BUCKET,
                   "S3Key": location.s3ObjectLocation.fields.key
                 }
               }
@@ -400,7 +401,7 @@
           data["Input"] = {
             "Media": {
               "Video": {
-                "S3Bucket": process.env.VUE_APP_DATAPLANE_BUCKET,
+                "S3Bucket": getRuntimeConfig.DATAPLANE_BUCKET,
                 "S3Key": location.s3ObjectLocation.fields.key
               }
             }
@@ -413,7 +414,7 @@
         } else {
           vm.s3UploadError("Unsupported media type, " + media_type + ". Please upload a jpg or mp4.")
         }
-        fetch(process.env.VUE_APP_WORKFLOW_API_ENDPOINT + 'workflow/execution', {
+        fetch(getRuntimeConfig.WORKFLOW_API_ENDPOINT + 'workflow/execution', {
           method: 'post',
           body: JSON.stringify(data),
           headers: {'Content-Type': 'application/json', 'Authorization': token}
@@ -427,7 +428,7 @@
               console.log("ERROR: Failed to start workflow.");
               console.log(res.data.Code);
               console.log(res.data.Message);
-              console.log("URL: " + process.env.VUE_APP_WORKFLOW_API_ENDPOINT + 'workflow/execution');
+              console.log("URL: " + getRuntimeConfig.WORKFLOW_API_ENDPOINT + 'workflow/execution');
               console.log("Data:");
               console.log(JSON.stringify(data));
               console.log((data));
@@ -449,7 +450,7 @@
           return accessToken
         })
         var vm = this;
-        fetch(process.env.VUE_APP_WORKFLOW_API_ENDPOINT+'workflow/execution/asset/'+asset_id, {
+        fetch(getRuntimeConfig.WORKFLOW_API_ENDPOINT+'workflow/execution/asset/'+asset_id, {
           method: 'get',
           headers: {
             'Authorization': token

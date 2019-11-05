@@ -6,12 +6,17 @@
 
 <script>
 import { AmplifyEventBus } from "aws-amplify-vue";
+import Amplify, { Auth } from 'aws-amplify';
+
 export default {
   name: "Login",
   data() {
     return {};
   },
   mounted() {
+    console.log("Auth config:");
+    console.log(Auth.configure());
+
     AmplifyEventBus.$on("authState", eventInfo => {
       if (eventInfo === "signedIn") {
         this.$router.push({ name: "collection" });
@@ -21,6 +26,14 @@ export default {
     });
   },
   created() {
+    fetch("/runtimeConfig.json")
+      .then(r => r.json())
+      .then(json => {
+          console.log(json);
+        },
+        response => {
+          console.log('Error loading runtimeConfig.json:', response)
+        });
     this.getLoginStatus()
   },
   methods: {

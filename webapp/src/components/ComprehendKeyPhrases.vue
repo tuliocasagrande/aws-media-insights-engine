@@ -40,6 +40,7 @@
 <script>
 import Loading from '@/components/Loading.vue'
 import { mapState } from 'vuex'
+  //import getRuntimeConfig from '@/static/runtimeConfig.json'
 
 export default {
   name: "KeyPhrases",
@@ -85,7 +86,7 @@ export default {
     },
     fetchAssetData () {
       const vm = this;
-      fetch(process.env.VUE_APP_ELASTICSEARCH_ENDPOINT+'/_search?q=AssetId:'+this.$route.params.asset_id+' Confidence:>'+this.Confidence+' _index:miekey_phrases&default_operator=AND&size=100', {
+      fetch(getRuntimeConfig.ELASTICSEARCH_ENDPOINT+'/_search?q=AssetId:'+this.$route.params.asset_id+' Confidence:>'+this.Confidence+' _index:miekey_phrases&default_operator=AND&size=100', {
         method: 'get'
       }).then(response =>
         response.json().then(data => ({
