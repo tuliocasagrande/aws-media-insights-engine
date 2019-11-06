@@ -203,6 +203,11 @@ echo "Copying comprehend template to dist directory"
 echo "cp $workflows_dir/comprehend.yaml $dist_dir/comprehend.template"
 cp "$workflows_dir/comprehend.yaml" "$dist_dir/comprehend.template"
 
+# Redaction template
+echo "Copying Redaction template to dist directory"
+echo "cp $workflows_dir/redaction.yaml $dist_dir/redaction.template"
+cp "$workflows_dir/redaction.yaml" "$dist_dir/redaction.template"
+
 # Kitchen Sink template
 echo "Copying comprehend template to dist directory"
 echo "cp $workflows_dir/MieCompleteWorkflow.yaml $dist_dir/MieCompleteWorkflow.template"

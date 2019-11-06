@@ -60,6 +60,13 @@ Parameters:
     AllowedValues:
       - Yes
       - No
+  DeployRedactionWorkflow:
+    Description: Deploy Batch Redaction Workflows which take a video as input, splits into frames, and runs specified moderation analysis on each frame
+    Type: String
+    Default: Yes
+    AllowedValues:
+      - Yes
+      - No
   DeployComprehendWorkflow:
     Description: Deploy a Comprehend Workflow which takes text as input and identifies key entities and phrases
     Type: String
@@ -116,6 +123,7 @@ Metadata:
           #          - DeployTranscribeWorkflow
           - DeployComprehendWorkflow
           - DeployKitchenSinkWorkflow
+          - DeployRedactionWorkflow
           - Label:
               default: Analytics
             Parameters:
@@ -135,6 +143,8 @@ Metadata:
       #        default: Enable Transcribe Workflow Deployment
       RekognitionWorkflow:
         default: Enable Rekognition Workflow Deployment
+      DeployRedactionWorkflow:
+        default: Enable Batch Redaction Workflow Deployment
 
 Conditions:
   DeployOperatorLibraryCondition: !Equals [!Ref DeployOperatorLibrary, Yes]
@@ -145,6 +155,8 @@ Conditions:
   #  !Equals [!Ref DeployTranscribeWorkflow, Yes]
   DeployRekognitionWorkflowCondition:
     !Equals [!Ref DeployRekognitionWorkflow, Yes]
+  DeployRedactionWorkflowCondition:
+    !Equals [!Ref DeployRedactionWorkflow, Yes]
   DeployComprehendWorkflowCondition:
     !Equals [!Ref DeployComprehendWorkflow, Yes]
   DeployKitchenSinkWorkflowCondition:
@@ -1330,6 +1342,31 @@ Resources:
   #            - MediaInsightsWorkflowApi
   #            - Outputs.WorkflowCustomResourceArn
   #        OperatorLibraryStack: !GetAtt OperatorLibrary.Outputs.StackName
+
+  RedactionWorkflow:
+    Condition: DeployRedactionWorkflowCondition
+    DependsOn:
+      - MediaInsightsWorkflowApi
+      - MediaInsightsDataplaneApiStack
+      - OperatorLibrary
+    Type: "AWS::CloudFormation::Stack"
+    Properties:
+      TemplateURL:
+        !Join [
+          "/",
+          [
+            "https://s3.amazonaws.com",
+            !FindInMap ["SourceCode", "General", "S3Bucket"],
+            !FindInMap ["SourceCode", "General", "TemplateKeyPrefix"],
+            "redaction.template",
+          ],
+        ]
+      Parameters:
+        WorkflowCustomResourceArn:
+          Fn::GetAtt:
+            - MediaInsightsWorkflowApi
+            - Outputs.WorkflowCustomResourceArn
+        OperatorLibraryStack: !GetAtt OperatorLibrary.Outputs.StackName
 
   RekognitionWorkflow:
     Condition: DeployRekognitionWorkflowCondition

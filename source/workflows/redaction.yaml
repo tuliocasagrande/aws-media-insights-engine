@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Media Insights Engine - Workflow to run Redaction workflows"
+
+Parameters:
+  WorkflowCustomResourceArn:
+    Type: String
+    Description: "ARN of the Media Insights custom resource that handles creating operations, stages and workflows"
+  # FIXME - this doesn't work well with nesting - just pass in the layer resource
+  # MediaInsightsWorkflowStack:
+    # Description: "Name of the base media insights workflow stack"
+    # Type: String
+  OperatorLibraryStack:
+    Description: "Name of the operator library stack"
+    Type: String
+
+Resources:
+
+    # Stages 
+
+  FrameExtractorStage:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Stage"
+      Name: "FrameExtractorStage"
+      Operations:
+        - Fn::ImportValue:
+            Fn::Sub: "${OperatorLibraryStack}:FrameExtractor"
+
+  BatchContentModerationStage:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Stage"
+      Name: "BatchContentModerationStage"
+      Operations:
+        - Fn::ImportValue:
+            Fn::Sub: "${OperatorLibraryStack}:BatchContentModeration"
+  
+  BatchFaceSearchStage:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Stage"
+      Name: "BatchFaceSearchStage"
+      Operations:
+        - Fn::ImportValue:
+            Fn::Sub: "${OperatorLibraryStack}:BatchFaceSearch"
+
+  BatchWeaponDetectionStage:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Stage"
+      Name: "BatchWeaponDetectionStage"
+      Operations:
+        - Fn::ImportValue:
+            Fn::Sub: "${OperatorLibraryStack}:BatchWeaponDetection"
+
+  BatchTextDetectionStage:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Stage"
+      Name: "BatchTextDetectionStage"
+      Operations:
+        - Fn::ImportValue:
+            Fn::Sub: "${OperatorLibraryStack}:BatchTextDetection"
+
+    # Workflows
+
+  RedactionModerationWorkflow:
+    DependsOn:
+      - FrameExtractorStage
+      - BatchContentModerationStage
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Workflow"
+      Name: "RedactionModerationWorkflow"
+      Stages: !Sub
+        - |-
+          {
+            "${FrameExtractorStage}":{
+              "Next": "${BatchContentModerationStage}"
+              },
+            "${BatchContentModerationStage}":{
+              "End": true
+              }
+          }
+        - {
+          FrameExtractorStage: !GetAtt FrameExtractorStage.Name,
+          BatchContentModerationStage: !GetAtt BatchContentModerationStage.Name
+        }
+      StartAt: !GetAtt FrameExtractorStage.Name
+
+  RedactionFaceSearchWorkflow:
+    DependsOn:
+      - FrameExtractorStage
+      - BatchFaceSearchStage
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Workflow"
+      Name: "RedactionFaceSearchWorkflow"
+      Stages: !Sub
+        - |-
+          {
+            "${FrameExtractorStage}":{
+              "Next": "${BatchFaceSearchStage}"
+              },
+            "${BatchFaceSearchStage}":{
+              "End": true
+              }
+          }
+        - {
+          FrameExtractorStage: !GetAtt FrameExtractorStage.Name,
+          BatchFaceSearchStage: !GetAtt BatchFaceSearchStage.Name
+        }
+      StartAt: !GetAtt FrameExtractorStage.Name
+
+  RedactionTextWorkflow:
+    DependsOn:
+      - FrameExtractorStage
+      - BatchTextDetectionStage
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Workflow"
+      Name: "RedactionTextWorkflow"
+      
+      Stages: !Sub
+        - |-
+          {
+            "${FrameExtractorStage}":{
+              "Next": "${BatchTextDetectionStage}"
+              },
+            "${BatchTextDetectionStage}":{
+              "End": true
+              }
+          }
+        - {
+          FrameExtractorStage: !GetAtt FrameExtractorStage.Name,
+          BatchTextDetectionStage: !GetAtt BatchTextDetectionStage.Name
+        }
+      StartAt: !GetAtt FrameExtractorStage.Name
+
+  RedactionWeaponWorkflow:
+    DependsOn:
+      - FrameExtractorStage
+      - BatchWeaponDetectionStage
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Workflow"
+      Name: "RedactionWeaponWorkflow"
+      Stages: !Sub
+        - |-
+          {
+            "${FrameExtractorStage}":{
+              "Next": "${BatchWeaponDetectionStage}"
+              },
+            "${BatchWeaponDetectionStage}":{
+              "End": true
+              }
+          }
+        - {
+          FrameExtractorStage: !GetAtt FrameExtractorStage.Name,
+          BatchWeaponDetectionStage: !GetAtt BatchWeaponDetectionStage.Name
+        }
+      StartAt: !GetAtt FrameExtractorStage.Name
+
