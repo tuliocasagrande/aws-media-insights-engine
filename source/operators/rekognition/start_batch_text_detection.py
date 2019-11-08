@@ -57,7 +57,7 @@ def lambda_handler(event, context):
         chunk_details = json.loads(s3.get_object(Bucket=s3bucket, Key=s3key, )["Body"].read())
         
         chunk_result = []
-        for img_s3key in chunk_details['s3_original_frames_keys']:
+        for img_s3key in chunk_details['s3_resized_frame_keys']:
             # For each frame detect text and save the results
             try:
                 response = detect_text(s3bucket, urllib.parse.unquote_plus(img_s3key))
