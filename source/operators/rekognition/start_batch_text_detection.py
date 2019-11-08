@@ -68,6 +68,7 @@ def lambda_handler(event, context):
             else:
                 frame_result = []
                 for i in response['TextDetections']:
+                    print('Text detection for ', img_s3key, ':', i)
                     if i['Type'] == 'LINE' and i['Confidence'] > MIN_CONFIDENCE:
                         bbox = i['Geometry']['BoundingBox']
                         frame_id, file_extension = os.path.splitext(os.path.basename(img_s3key))
@@ -78,7 +79,7 @@ def lambda_handler(event, context):
                                     'Confidence': i['Confidence'],
                                     'DetectedText': i['DetectedText'],
                                     'Timestamp': chunk_details['timestamps'][frame_id]})
-
+                print("frame result for ", img_s3key, ':', frame_result)
                 if len(frame_result)>0: chunk_result+=frame_result
 
         response = {'metadata': chunk_details['metadata'],
