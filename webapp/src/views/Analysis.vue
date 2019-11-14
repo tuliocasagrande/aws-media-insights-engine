@@ -115,6 +115,7 @@
                 :s3Uri="s3_uri"
                 :filename="filename"
                 :videoUrl="videoOptions.sources[0].src"
+                :redactedLocation="redactedAssetLocation"
               />
             </b-row>
           </div>
@@ -215,6 +216,7 @@
     data: function () {
       return {
         s3_uri: '',
+        redactedAssetLocation: null,
         filename: '',
         currentView: 'LabelObjects',
         showElasticSearchAlert: false,
@@ -265,7 +267,8 @@
               if (this.filename.substring(this.filename.lastIndexOf(".")) === ".mp4") {
                 this.mediaType = "video/mp4"
               }
-              this.getVideoUrl()
+              this.getVideoUrl();
+              this.getRedactedCopy();
             })
           });
           this.updateAssetId();
@@ -292,6 +295,41 @@
             this.videoOptions.sources[0].src = data
         }).catch(err => console.error(err));
         })
+      },
+      async getRedactedCopy() {
+        const token = await this.$Amplify.Auth.currentSession().then(data =>{
+          var accessToken = data.getIdToken().getJwtToken()
+          return accessToken
+        })
+        const asset_id = this.$route.params.asset_id;
+        //todo: change name from stitcher to frameStitcher
+        let response = await fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT+'/metadata/'+ asset_id + '/stitcher', {
+            method: 'get',
+            headers: {
+              'Authorization': token
+          }
+        })
+        if (response.status === 200) {
+          let result = await response.json()
+          let redacted_s3_key = result.results.redactedAssetLocation
+          let bucket = this.s3_uri.split("/")[2];
+          const data = { "S3Bucket": bucket, "S3Key": redacted_s3_key }
+          console.log('data', data)
+          let download_url_response = await fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT + '/download', {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token
+            },
+            body: JSON.stringify(data)
+          }
+          )
+          if (download_url_response.status === 200) {
+            let download_url_result = await download_url_response.text()
+            this.redactedAssetLocation = download_url_result
+          }
+        }
       },
       updateAssetId () {
         this.$store.commit('updateAssetId', this.$route.params.asset_id);

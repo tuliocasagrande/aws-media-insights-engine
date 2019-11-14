@@ -5,6 +5,14 @@
       class="my-1"
     >
       <b-col>
+        <label v-if="redactedLocation">
+          <a
+          :href="redactedLocation"
+          >
+          View Redacted Version
+        </a>
+        </label>
+        <br>
         <label>Asset ID:</label>
         {{ this.$route.params.asset_id }}
         <br>
@@ -28,7 +36,7 @@
   import { mapState } from 'vuex'
   export default {
     name: 'MediaSummary',
-    props: ['s3Uri','filename','videoUrl'],
+    props: ['s3Uri','filename','videoUrl', 'redactedLocation'],
     data () {
       return {
         duration: undefined
