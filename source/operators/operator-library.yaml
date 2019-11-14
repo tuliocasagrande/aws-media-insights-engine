@@ -46,6 +46,59 @@ Resources:
 
   # IAM Roles:
 
+
+  frameBlurRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+      Policies:
+        - PolicyName: "MieframeBlurPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action: "lambda:InvokeFunction"
+                Resource: !Ref DataPlaneHandlerArn
+                Effect: "Allow"
+              # TODO: Security - figure out why this only works with * and fix it
+              - Action: "s3:*"
+                Resource: "*"
+                Effect: "Allow"
+
+  frameStitcherRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+      Policies:
+        - PolicyName: "MieframeStitcherPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action: "lambda:InvokeFunction"
+                Resource: !Ref DataPlaneHandlerArn
+                Effect: "Allow"
+              # TODO: Security - figure out why this only works with * and fix it
+              - Action: "s3:*"
+                Resource: "*"
+                Effect: "Allow"
+
   frameExtractorRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -503,6 +556,60 @@ Resources:
           DataplaneEndpoint: !Ref "DataPlaneEndpoint"
           DataLookupRole: !GetAtt genericDataLookupLambdaRole.Arn
 
+  # Frame blur
+  FrameBlurFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      MemorySize: 512
+      Timeout: 600
+      Handler: "start_batch_blur.lambda_handler"
+      Layers:
+        - !Ref "MediaInsightsEnginePython36Layer"
+        - !Ref "MediaInsightsEngineCv2PythonLayer"
+      Role: !GetAtt "frameBlurRole.Arn"
+      Code:
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        S3Key:
+          !Join [
+            "/",
+            [
+            !FindInMap ["SourceCode", "General", "KeyPrefix"],
+            "frame_blur.zip",
+            ],
+          ]
+      Runtime: "python3.6"
+      Environment:
+        Variables:
+          DataplaneEndpoint: !Ref "DataPlaneEndpoint"
+          DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
+          STORE_FRAMES: "resized"
+ 
+  # Frame stitcher
+  FrameStitcherFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      MemorySize: 512
+      Timeout: 600
+      Handler: "frame_stitcher.lambda_handler"
+      Layers:
+        - !Ref "MediaInsightsEnginePython36Layer"
+        - !Ref "MediaInsightsEngineCv2PythonLayer"
+      Role: !GetAtt "frameStitcherRole.Arn"
+      Code:
+        S3Bucket: !FindInMap ["SourceCode", "General", "S3Bucket"]
+        S3Key:
+          !Join [
+            "/",
+            [
+            !FindInMap ["SourceCode", "General", "KeyPrefix"],
+            "frame_stitcher.zip",
+            ],
+          ]
+      Runtime: "python3.6"
+      Environment:
+        Variables:
+          DataplaneEndpoint: !Ref "DataPlaneEndpoint"
+          DATAPLANE_BUCKET: !Ref "DataPlaneBucket"
 
   # Frame extractor
   FrameExtractorFunction:
@@ -1368,6 +1475,41 @@ Resources:
           botoConfig: '{"user_agent": "aws-tm-mie/python3.7/lambda"}'
 
   # Register as operators in the control plane
+  
+  FrameBlurOperation:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Operation"
+      Name: "batchBlur"
+      Type: "Sync"
+      Configuration: 
+        {
+          "MediaType": "Images",
+          "Enabled": true,
+          "DetectionFile": "batchModeration.json",
+          "DetectionType": "ModerationLabel",
+          "DetectionLabel": "Name", 
+          "DetectionIds": ["Weapon Violence"],
+          "Padding": 1.1
+        }
+      StartLambdaArn: !GetAtt FrameBlurFunction.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
+  
+  FrameStitcherOperation:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Operation"
+      Name: "frameStitcher"
+      Type: "Sync"
+      Configuration: 
+        {
+          "MediaType": "MetadataOnly",
+          "Enabled": true
+        }
+      StartLambdaArn: !GetAtt FrameStitcherFunction.Arn
+      StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
   FrameExtractorOperation:
     Type: Custom::CustomResource
@@ -1398,7 +1540,7 @@ Resources:
       ResourceType: "Operation"
       Name: "batchFaceSearch"
       Type: "Sync"
-      Configuration: { "MediaType": "Images", "Enabled": true }
+      Configuration: { "MediaType": "Images", "Enabled": true, "CollectionId": "mie" }
       StartLambdaArn: !GetAtt startBatchFaceSearch.Arn
       StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn
 
@@ -1698,6 +1840,16 @@ Resources:
   # Export operator names as outputs
 
 Outputs:
+  FrameStitcherOperation:
+    Description: "Operation name of the FrameStitcher Operator"
+    Value: !GetAtt FrameStitcherOperation.Name
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", FrameStitcher]]
+  FrameBlurOperation:
+    Description: "Operation name of the FrameBlur Operator"
+    Value: !GetAtt FrameBlurOperation.Name
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", FrameBlur]]
   FrameExtractorOperation:
     Description: "Operation name of the FrameExtractor Operator"
     Value: !GetAtt FrameExtractorOperation.Name

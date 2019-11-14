@@ -27,6 +27,26 @@ Resources:
         - Fn::ImportValue:
             Fn::Sub: "${OperatorLibraryStack}:FrameExtractor"
 
+  FrameBlurStage:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Stage"
+      Name: "FrameBlurStage"
+      Operations:
+        - Fn::ImportValue:
+            Fn::Sub: "${OperatorLibraryStack}:FrameBlur"
+  
+  FrameStitcherStage:
+    Type: Custom::CustomResource
+    Properties:
+      ServiceToken: !Ref WorkflowCustomResourceArn
+      ResourceType: "Stage"
+      Name: "FrameStitcherStage"
+      Operations:
+        - Fn::ImportValue:
+            Fn::Sub: "${OperatorLibraryStack}:FrameStitcher"
+
   BatchContentModerationStage:
     Type: Custom::CustomResource
     Properties:
@@ -73,6 +93,7 @@ Resources:
     DependsOn:
       - FrameExtractorStage
       - BatchContentModerationStage
+      - FrameBlurStage
     Type: Custom::CustomResource
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
@@ -85,12 +106,20 @@ Resources:
               "Next": "${BatchContentModerationStage}"
               },
             "${BatchContentModerationStage}":{
+              "Next": "${FrameBlurStage}"
+              },
+            "${FrameBlurStage}": {
+              "Next": "${FrameStitcherStage}"
+            },
+            "${FrameStitcherStage}": {
               "End": true
-              }
+            }
           }
         - {
           FrameExtractorStage: !GetAtt FrameExtractorStage.Name,
-          BatchContentModerationStage: !GetAtt BatchContentModerationStage.Name
+          BatchContentModerationStage: !GetAtt BatchContentModerationStage.Name,
+          FrameBlurStage: !GetAtt FrameBlurStage.Name,
+          FrameStitcherStage: !GetAtt FrameStitcherStage.Name
         }
       StartAt: !GetAtt FrameExtractorStage.Name
 
@@ -98,6 +127,7 @@ Resources:
     DependsOn:
       - FrameExtractorStage
       - BatchFaceSearchStage
+      - FrameBlurStage
     Type: Custom::CustomResource
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
@@ -110,12 +140,16 @@ Resources:
               "Next": "${BatchFaceSearchStage}"
               },
             "${BatchFaceSearchStage}":{
+              "Next": "${FrameBlurStage}"
+              },
+            "${FrameBlurStage}": {
               "End": true
-              }
+            }
           }
         - {
           FrameExtractorStage: !GetAtt FrameExtractorStage.Name,
-          BatchFaceSearchStage: !GetAtt BatchFaceSearchStage.Name
+          BatchFaceSearchStage: !GetAtt BatchFaceSearchStage.Name,
+          FrameBlurStage: !GetAtt FrameBlurStage.Name
         }
       StartAt: !GetAtt FrameExtractorStage.Name
 
@@ -149,6 +183,7 @@ Resources:
     DependsOn:
       - FrameExtractorStage
       - BatchWeaponDetectionStage
+      - FrameBlurStage
     Type: Custom::CustomResource
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
@@ -161,12 +196,16 @@ Resources:
               "Next": "${BatchWeaponDetectionStage}"
               },
             "${BatchWeaponDetectionStage}":{
+              "Next": "${FrameBlurStage}"
+              },
+            "${FrameBlurStage}": {
               "End": true
-              }
+            }
           }
         - {
           FrameExtractorStage: !GetAtt FrameExtractorStage.Name,
-          BatchWeaponDetectionStage: !GetAtt BatchWeaponDetectionStage.Name
+          BatchWeaponDetectionStage: !GetAtt BatchWeaponDetectionStage.Name,
+          FrameBlurStage: !GetAtt FrameBlurStage.Name
         }
       StartAt: !GetAtt FrameExtractorStage.Name
 

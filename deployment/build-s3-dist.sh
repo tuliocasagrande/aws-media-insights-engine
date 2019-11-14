@@ -816,6 +816,38 @@ zip -r9 frame_extractor.zip frame_extractor.py
 
 mv -f *.zip $dist_dir/
 
+
+echo "------------------------------------------------------------------------------"
+echo "Frame Blur  operator"
+echo "------------------------------------------------------------------------------"
+
+echo "Building frame blur function"
+cd "$source_dir/operators/blur" || exit
+
+# Make lambda package
+
+echo "create lambda package"
+
+zip -r9 frame_blur.zip start_batch_blur.py
+
+mv -f *.zip $dist_dir/
+
+
+echo "------------------------------------------------------------------------------"
+echo "Frame Stitcher  operator"
+echo "------------------------------------------------------------------------------"
+
+echo "Building frame blur function"
+cd "$source_dir/operators/stitcher" || exit
+
+# Make lambda package
+
+echo "create lambda package"
+
+zip -r9 frame_stitcher.zip frame_stitcher.py
+
+mv -f *.zip $dist_dir/
+
 echo "------------------------------------------------------------------------------"
 echo "DDB Stream Function"
 echo "------------------------------------------------------------------------------"

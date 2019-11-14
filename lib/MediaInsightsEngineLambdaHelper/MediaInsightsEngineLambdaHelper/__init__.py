@@ -294,12 +294,14 @@ class DataPlane:
         :return: Dataplane response
         """
         if operator_name:
-            path = "/metadata/{asset_id}/operator".format(asset_id=asset_id, operator=operator_name)
+            path = "/metadata/{asset_id}/{operator}".format(asset_id=asset_id, operator=operator_name)
+            resource = "/metadata/{asset_id}/{operator_name}"
+            path_params = {"asset_id": asset_id, "operator_name": operator_name}
         else:
             path = "/metadata/{asset_id}".format(asset_id=asset_id)
+            resource = "/metadata/{asset_id}"
+            path_params = {"asset_id": asset_id}
 
-        resource = "/metadata/{asset_id}"
-        path_params = {"asset_id": asset_id}
         method = "GET"
 
         query_params = {}
