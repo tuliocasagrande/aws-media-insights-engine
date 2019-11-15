@@ -303,7 +303,7 @@
         })
         const asset_id = this.$route.params.asset_id;
         //todo: change name from stitcher to frameStitcher
-        let response = await fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT+'/metadata/'+ asset_id + '/stitcher', {
+        let response = await fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT+'/metadata/'+ asset_id + '/frameStitcher', {
             method: 'get',
             headers: {
               'Authorization': token

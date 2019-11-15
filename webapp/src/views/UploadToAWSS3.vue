@@ -94,14 +94,15 @@
                 {{ textFormError }}
               </div>
             </b-card>
-            <b-card header="Redaction Operators">
+            <b-card header="Redaction Settings">
               <b-form-group>
                 <b-form-checkbox-group
                   id="checkbox-group-4"
                   v-model="enabledOperators"
-                  :options="redactionOperators"
+                  :options="redactionTypes"
                   name="flavour-4"
                 ></b-form-checkbox-group>
+                <a :href="definitionsLink"> Content Definitions </a>
               </b-form-group>
               <div v-if="redactionFormError" style="color:red">
                 {{ redactionFormError }}
@@ -137,8 +138,9 @@
     },
     data() {
       return {
+        definitionsLink: "https://aws.amazon.com/rekognition/faqs/#Unsafe_Content_Detection",
         upload_in_progress: false,
-        enabledOperators: ['labelDetection', 'celebrityRecognition', 'contentModeration', 'faceDetection', 'Transcribe', 'Translate', 'ComprehendKeyPhrases', 'ComprehendEntities'],
+        enabledOperators: [],
         videoOperators: [
           {text: 'Object Detection', value: 'labelDetection'},
           {text: 'Celebrity Recognition', value: 'celebrityRecognition'},
@@ -156,8 +158,11 @@
           {text: 'Polly', value: 'Polly'},
           {text: 'Translate', value: 'Translate'},
         ],
-        redactionOperators: [
-          {text: 'Moderated Content', value: 'RedactedModeratedContent'}
+        redactionTypes: [
+          {text: 'Violence', value: 'Violence'},
+          {text: 'Nudity', value: 'Explicit Nudity'},
+          {text: 'Suggestive', value: 'Suggestive'},
+          {text: 'Visually Disturbing', value: 'Visually Disturbing'}
         ],
         faceCollectionId: "",
         genericDataFilename: "",
@@ -246,9 +251,12 @@
         return "";
       },
       redactionFormError() {
-        if ( this.enabledOperators.includes('RedactedModeratedContent') ) {
+        if ( this.enabledOperators.includes('Violence') || ( this.enabledOperators.includes('Explicit Nudity')) || ( this.enabledOperators.includes('Suggestive')) || ( this.enabledOperators.includes('Visually Disturbing')) ) {
           if (this.enabledOperators.includes("Transcribe") || (this.enabledOperators.includes("Translate")) || (this.enabledOperators.includes("labelDetection")) || (this.enabledOperators.includes("celebrityRecognition")) || (this.enabledOperators.includes("contentModeration")) || (this.enabledOperators.includes("faceDetection")) || (this.enabledOperators.includes("faceSearch")) || (this.enabledOperators.includes("genericDataLookup")) || (this.enabledOperators.includes("ComprehendKeyPhrases")) || (this.enabledOperators.includes("ComprehendEntities")) || (this.enabledOperators.includes("Polly"))) {
             return "Redaction workflows must be run in isolation. Disable all other analysis to perform Redaction.";
+          }
+          if (this.enabledOperators.length > 1) {
+            return "Only one redaction type can be enabled."
           }
         }
         return "";
@@ -303,7 +311,8 @@
           "Configuration": {
             "FrameBlurStage": {
               "batchBlur": {
-                "DetectionFile": "batchModeration.json"
+                "DetectionFile": "batchModeration.json",
+                "DetectionId": this.enabledOperators[0]
               }
             }
           }

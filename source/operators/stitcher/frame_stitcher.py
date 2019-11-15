@@ -9,6 +9,7 @@ import cv2
 import json
 import boto3
 import numpy as np
+import re
 from collections import deque
 from MediaInsightsEngineLambdaHelper import MasExecutionError
 from MediaInsightsEngineLambdaHelper import DataPlane
@@ -17,6 +18,12 @@ from MediaInsightsEngineLambdaHelper import MediaInsightsOperationHelper
 s3 = boto3.client('s3')
 
 bucket = os.environ['DATAPLANE_BUCKET']
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 
 def download_image(s3key):
     temp_image = '/tmp/temp_image'
@@ -44,7 +51,7 @@ def lambda_handler(event, context):
 
     frames = chunk_details['results']['s3_blur_frame_keys']
 
-    sorted_frames = sorted(frames)
+    sorted_frames = sorted(frames, key=natural_keys)
 
     frame_queue = deque(sorted_frames)
 

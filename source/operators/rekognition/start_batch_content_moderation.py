@@ -11,12 +11,19 @@ import json
 import urllib
 import boto3
 import uuid
+import re
 from MediaInsightsEngineLambdaHelper import MediaInsightsOperationHelper
 from MediaInsightsEngineLambdaHelper import MasExecutionError
 from MediaInsightsEngineLambdaHelper import DataPlane
 
 
 s3 = boto3.client('s3')
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 
 # Perform Content Moderation analysis in an image
 def detect_moderation_labels(bucket, key):
@@ -55,8 +62,9 @@ def lambda_handler(event, context):
         chunk_details = json.loads(s3.get_object( Bucket=s3bucket, Key=s3key, )["Body"].read())
         chunk_result = []
         chunk_s3_keys = chunk_details['s3_resized_frame_keys']
-        for img_s3key in chunk_s3_keys:
-            # For each frame detect text and save the results
+        frames = sorted(chunk_s3_keys, key=natural_keys)
+        for img_s3key in frames:
+            # For each frame detect moderation labels and save the results
             try:
                 response = detect_moderation_labels(s3bucket, urllib.parse.unquote_plus(img_s3key))
             except Exception as e:
@@ -66,7 +74,6 @@ def lambda_handler(event, context):
             else:
                 frame_result = []
                 for i in response['ModerationLabels']:
-                    # Workaround: Fixme later. Adding static bounding box to facilitate interface rendering logic.
                     if len(i['ParentName']) >1:
                         # is a child node
                         i['BoundingBox'] =  {
@@ -75,13 +82,9 @@ def lambda_handler(event, context):
                                 "Left": "0.0",
                                 "Top": "0.0"
                         }
-                        frame_id, file_extension = os.path.splitext(os.path.basename(img_s3key))
-                        frame_result.append({'frame_id': frame_id[3:],
-                                    'ModerationLabel': i,
-                                    'Timestamp': chunk_details['timestamps'][frame_id]})
-
-                if len(frame_result)>0:
-                    chunk_result+=frame_result
+                    frame_id, file_extension = os.path.splitext(os.path.basename(img_s3key))
+                    frame_result.append({'ModerationLabel': i, 'Timestamp': chunk_details['timestamps'][frame_id]})
+                chunk_result.append(frame_result)
 
         response = {'metadata': chunk_details['metadata'],
                         'frames_result': chunk_result}

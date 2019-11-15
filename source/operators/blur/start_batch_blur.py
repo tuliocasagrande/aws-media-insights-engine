@@ -9,11 +9,20 @@ import cv2
 import json
 import boto3
 import numpy as np
+import re
+from collections import deque
 from MediaInsightsEngineLambdaHelper import MasExecutionError
 from MediaInsightsEngineLambdaHelper import DataPlane
 from MediaInsightsEngineLambdaHelper import MediaInsightsOperationHelper
 
 s3 = boto3.client('s3')
+
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 
 
 def download_image(s3bucket, s3key):
@@ -24,23 +33,34 @@ def download_image(s3bucket, s3key):
     return temp_image
 
 
-def transform(metadata, img, frame_id, frame_width, frame_height, i, padding, detection_type, detection_label):
+def transform(metadata, img, frame_id, frame_width, frame_height, detection_id, padding, detection_type, detection_label, confidence):
     nparr = np.fromstring(img, np.uint8)
     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
-    for item in metadata:
-        # for item in item_list:
-        if (item["frame_id"] == str(frame_id)):
-            bbox = item[detection_type]['BoundingBox']
-            # Set the padding for all four sides of the bounding box (e.g 10.%)
-            x1, y1 = (int((float(bbox['Left']) * float(frame_width)) * float(padding)), int((float(bbox['Top']) * float(frame_height)) * float(padding)))
-            x2, y2 = (int(x1 + int(float(bbox['Width']) * float(frame_width)) * float(padding)), int(y1 + int(float(bbox['Height']) * float(frame_height)) * float(padding)))
-            if item[detection_type][detection_label] == i:
-                print('Blur: %s' % item[detection_type][detection_label])
-                frame[y1:y2, x1:x2] = cv2.GaussianBlur(frame[y1:y2, x1:x2], (41, 41), 30.0, 30.0)
-    frame = cv2.imencode(".jpg", frame)[1]
-    return frame
-
+    frame_data = metadata[int(frame_id)]
+    if len(frame_data) > 0:
+        # we have labels
+        for labels in frame_data:
+            label = labels[detection_type]
+            if "BoundingBox" in label:
+                bbox = label['BoundingBox']
+                # Set the padding for all four sides of the bounding box (e.g 10.%)
+                x1, y1 = (int((float(bbox['Left']) * float(frame_width)) * float(padding)), int((float(bbox['Top']) * float(frame_height)) * float(padding)))
+                x2, y2 = (int(x1 + int(float(bbox['Width']) * float(frame_width)) * float(padding)), int(y1 + int(float(bbox['Height']) * float(frame_height)) * float(padding)))
+                if label[detection_label] == detection_id:
+                    if float(label['Confidence']) > float(confidence):
+                        frame[y1:y2, x1:x2] = cv2.GaussianBlur(frame[y1:y2, x1:x2], (41, 41), 30.0, 30.0)
+                        frame = cv2.imencode(".jpg", frame)[1]
+                        return frame
+                    else:
+                        frame = cv2.imencode(".jpg", frame)[1]
+                        return frame
+                else:
+                    frame = cv2.imencode(".jpg", frame)[1]
+                    return frame
+    else:
+        frame = cv2.imencode(".jpg", frame)[1]
+        return frame
 
 # Lambda function entrypoint:
 def lambda_handler(event, context):
@@ -58,10 +78,11 @@ def lambda_handler(event, context):
         raise MasExecutionError(operator_object.return_output_object())
     
     try:
-        ids = operator_object.configuration['DetectionIds']
+        detection_id = operator_object.configuration['DetectionId']
         padding = operator_object.configuration['Padding']
         detection_type = operator_object.configuration['DetectionType']
         detection_label = operator_object.configuration['DetectionLabel']
+        min_confidence = operator_object.configuration['MinConfidence']
     except Exception as e:
         operator_object.update_workflow_status("Error")
         operator_object.add_workflow_metadata(BatchBlurError=e)
@@ -85,15 +106,20 @@ def lambda_handler(event, context):
         batch_details = json.loads(s3.get_object(Bucket=s3bucket, Key=batch_key, )["Body"].read())
         print(batch_details)
         blur_frame_keys = []
-        frame_counter = 0
-        for frame in chunk_details['s3_resized_frame_keys']:
-            frame_upload = s3.get_object(Bucket=s3bucket, Key=frame)["Body"].read()
-            for i in ids:
-                frame_upload = transform(batch_details["frames_result"], frame_upload, frame_counter, batch_details['metadata']["original_frame_width"], batch_details['metadata']["original_frame_height"], i, padding, detection_type, detection_label)
-            frame_key = 'private/assets/%s/output/%s/blur/%s/id_%d.jpg' % (asset_id, workflow_id, detection_type, frame_counter)
-            s3.put_object(ACL='bucket-owner-full-control', Bucket=s3bucket, Key=frame_key, Body=bytearray(frame_upload))
+        
+        frames = sorted(chunk_details['s3_resized_frame_keys'], key=natural_keys)
+        frame_queue = deque(frames)
+        
+        while len(frame_queue) > 0:
+            current_frame = frame_queue[0]
+            frame_name = current_frame.split('/')[-1]
+            frame_id = frame_name.split('.')[0].split('_')[1]
+            frame_object = s3.get_object(Bucket=s3bucket, Key=current_frame)["Body"].read()
+            blurred_frame = transform(batch_details["frames_result"], frame_object, frame_id, batch_details['metadata']["frame_width"], batch_details['metadata']["frame_height"], detection_id, padding, detection_type, detection_label, min_confidence)
+            frame_key = 'private/assets/%s/output/%s/blur/%s/%s' % (asset_id, workflow_id, detection_type, frame_name)
+            s3.put_object(ACL='bucket-owner-full-control', Bucket=s3bucket, Key=frame_key, Body=bytearray(blurred_frame))
             blur_frame_keys.append(frame_key)
-            frame_counter += 1
+            frame_queue.popleft()
 
         response = {
             'metadata': chunk_details['metadata'],
