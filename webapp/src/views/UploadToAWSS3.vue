@@ -94,6 +94,19 @@
                 {{ textFormError }}
               </div>
             </b-card>
+            <b-card header="Redaction Operators">
+              <b-form-group>
+                <b-form-checkbox-group
+                  id="checkbox-group-4"
+                  v-model="enabledOperators"
+                  :options="redactionOperators"
+                  name="flavour-4"
+                ></b-form-checkbox-group>
+              </b-form-group>
+              <div v-if="redactionFormError" style="color:red">
+                {{ redactionFormError }}
+              </div>
+            </b-card>
           </b-card-group>
         </b-container>
       </b-collapse>
@@ -142,6 +155,9 @@
           {text: 'Comprehend Entities', value: 'ComprehendEntities'},
           {text: 'Polly', value: 'Polly'},
           {text: 'Translate', value: 'Translate'},
+        ],
+        redactionOperators: [
+          {text: 'Moderated Content', value: 'RedactedModeratedContent'}
         ],
         faceCollectionId: "",
         genericDataFilename: "",
@@ -229,6 +245,14 @@
         }
         return "";
       },
+      redactionFormError() {
+        if ( this.enabledOperators.includes('RedactedModeratedContent') ) {
+          if (this.enabledOperators.includes("Transcribe") || (this.enabledOperators.includes("Translate")) || (this.enabledOperators.includes("labelDetection")) || (this.enabledOperators.includes("celebrityRecognition")) || (this.enabledOperators.includes("contentModeration")) || (this.enabledOperators.includes("faceDetection")) || (this.enabledOperators.includes("faceSearch")) || (this.enabledOperators.includes("genericDataLookup")) || (this.enabledOperators.includes("ComprehendKeyPhrases")) || (this.enabledOperators.includes("ComprehendEntities")) || (this.enabledOperators.includes("Polly"))) {
+            return "Redaction workflows must be run in isolation. Disable all other analysis to perform Redaction.";
+          }
+        }
+        return "";
+      },
       audioFormError() {
         // Validate transcribe is enabled if any text operator is enabled
         if (!this.enabledOperators.includes("Transcribe") && (this.enabledOperators.includes("Translate") || this.enabledOperators.includes("ComprehendEntities") || this.enabledOperators.includes("ComprehendKeyPhrases") || this.enabledOperators.includes("Polly"))) {
@@ -270,8 +294,20 @@
       },
       validForm() {
         var validStatus = true;
-        if (this.textFormError || this.audioFormError || this.videoFormError) validStatus = false;
+        if (this.textFormError || this.audioFormError || this.videoFormError || this.redactionFormError) validStatus = false;
         return validStatus;
+      },
+      redactionModerationWorkflowConfig () {
+        return {
+          "Name": "RedactionModerationWorkflow",
+          "Configuration": {
+            "FrameBlurStage": {
+              "batchBlur": {
+                "DetectionFile": "batchModeration.json"
+              }
+            }
+          }
+        }
       },
       workflowConfig() {
         return {
@@ -396,7 +432,12 @@
             }
           };
         } else if (media_type == 'video/mp4') {
-          data = vm.workflowConfig;
+          if (vm.enabledOperators.includes('RedactedModeratedContent')) {
+            data = vm.redactionModerationWorkflowConfig
+          }
+          else {
+            data = vm.workflowConfig;
+          }
           data["Input"] = {
             "Media": {
               "Video": {
