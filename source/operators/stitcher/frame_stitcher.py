@@ -38,6 +38,8 @@ def lambda_handler(event, context):
     workflow_id = str(operator_object.workflow_execution_id)
     asset_id = str(operator_object.asset_id)
 
+    redaction_type = operator_object.configuration['RedactionType']
+
     dataplane = DataPlane()
 
     # Call dataplane to retrieve chunk details
@@ -74,14 +76,27 @@ def lambda_handler(event, context):
             out.write(frame_array[i])
     out.release()
 
-    upload_s3_key = 'private/assets/%s/output/%s' % (asset_id, file_name)
+    upload_s3_key = 'private/assets/%s/output/%s_%s' % (asset_id, redaction_type, file_name)
 
     s3.upload_file(path_out, bucket, upload_s3_key)
 
-    response = {"redactedAssetLocation": upload_s3_key}
 
+    existing_redacted = False
+    try:
+        check_existing_redacted = dataplane.retrieve_asset_metadata(asset_id, operator_name="frameStitcher")
+    except Exception:
+        print('No existing redaction copies')
+    else:
+        existing_redacted = True
+    
+    if existing_redacted:
+        redacted_copies = check_existing_redacted['results']['redactedAssets']
+        redacted_copies.append({redaction_type: upload_s3_key})
+        response = {"redactedAssets": redacted_copies}
+    else:
+        response = [{redaction_type: upload_s3_key}]
+    
     metadata_upload = dataplane.store_asset_metadata(asset_id, "frameStitcher", workflow_id, response)
-
     if metadata_upload["Status"] == "Success":
         print("Uploaded metadata for asset: {asset}".format(asset=asset_id))
         operator_object.update_workflow_status("Complete")

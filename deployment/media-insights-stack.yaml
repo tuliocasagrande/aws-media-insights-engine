@@ -796,6 +796,14 @@ Resources:
       UserPoolId: !Ref MieUserPool
       GroupName: !Ref DevGroupName
 
+  MieDemoGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      Description: 'User group for demo users'
+      RoleArn: !GetAtt MieDemoRole.Arn
+      UserPoolId: !Ref MieUserPool
+      GroupName: "MieDemoGroup"
+
   MieDefaultDeveloperAccount:
     Type: AWS::Cognito::UserPoolUser
     Properties:
@@ -804,6 +812,49 @@ Resources:
       UserAttributes: [{"Name": "email", "Value": !Ref AdminEmail}]
       Username: !Ref AdminEmail
       UserPoolId: !Ref MieUserPool
+  
+  MieDemoRole:
+    DependsOn: [MediaInsightsWorkflowApi, MediaInsightsDataplaneApiStack]
+    Type: "AWS::IAM::Role"
+    Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Federated: "cognito-identity.amazonaws.com"
+              Action:
+                - "sts:AssumeRoleWithWebIdentity"
+              Condition:
+                StringEquals:
+                  "cognito-identity.amazonaws.com:aud": !Ref MieIdentityPool
+                "ForAnyValue:StringEquals":
+                  "cognito-identity.amazonaws.com:amr": authenticated
+        Policies:
+          - PolicyName: "MieDemoUserCognitoPolicy"
+            PolicyDocument: !Sub
+              - |-
+                {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Action": [
+                        "execute-api:Invoke"
+                      ],
+                      "Effect": "Allow",
+                      "Resource": [
+                        "arn:aws:execute-api:${region}:${account}:${wfapi}/*/", 
+                        "arn:aws:execute-api:${region}:${account}:${dataapi}/*/"
+                        ]
+                    }
+                  ]
+                }
+              - {
+                region: !Ref "AWS::Region",
+                account: !Ref "AWS::AccountId",
+                wfapi: !GetAtt MediaInsightsWorkflowApi.Outputs.RestAPIId,
+                dataapi: !GetAtt MediaInsightsDataplaneApiStack.Outputs.RestAPIId
+              }
 
   MieDeveloperRole:
     DependsOn: [MediaInsightsWorkflowApi, MediaInsightsDataplaneApiStack]

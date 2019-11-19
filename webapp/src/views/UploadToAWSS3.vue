@@ -3,36 +3,42 @@
     <Header :is-upload-active="true" />
     <br>
     <b-container>
-      <b-alert
-        :show="dismissCountDown"
-        dismissible
-        variant="danger"
-        @dismissed="dismissCountDown=0"
-        @dismiss-count-down="countDownChanged"
-      >
-        {{ uploadErrorMessage }}
-      </b-alert>
-      <h1>Upload Videos</h1>
-      <p>{{ description }}</p>
-      <vue-dropzone
-        id="dropzone"
-        ref="myVueDropzone"
-        :awss3="awss3"
-        :options="dropzoneOptions"
-        @vdropzone-s3-upload-error="s3UploadError"
-        @vdropzone-success="s3UploadComplete"
-        @vdropzone-sending="upload_in_progress=true"
-        @vdropzone-queue-complete="upload_in_progress=false"
-      />
+      <div v-if="hasAssetParam">
+        <a>Running analysis on existing asset: {{ this.assetIdParam }}</a>
+      </div>
+      <div v-else>
+        <b-alert
+          :show="dismissCountDown"
+          dismissible
+          variant="danger"
+          @dismissed="dismissCountDown=0"
+          @dismiss-count-down="countDownChanged"
+        >
+          {{ uploadErrorMessage }}
+        </b-alert>
+        <h1>Upload Media</h1>
+        <p>{{ description }}</p>
+        <vue-dropzone
+          id="dropzone"
+          ref="myVueDropzone"
+          :awss3="awss3"
+          :options="dropzoneOptions"
+          @vdropzone-s3-upload-error="s3UploadError"
+          @vdropzone-success="s3UploadComplete"
+          @vdropzone-sending="upload_in_progress=true"
+          @vdropzone-queue-complete="upload_in_progress=false"
+        />
+        <br>
+      </div>
       <br>
       <b-button v-b-toggle.collapse-2 class="m-1">
         Configure Workflow
       </b-button>
-      <b-button v-if="validForm" variant="primary" @click="uploadFiles">
-        Start Upload and Run Workflow
+      <b-button v-if="validForm" variant="primary" @click="runWorkflow()">
+        Run Workflow
       </b-button>
-      <b-button v-else disabled variant="primary" @click="uploadFiles">
-        Start Upload and Run Workflow
+      <b-button v-else disabled variant="primary" @click="runWorkflow()">
+        Run Workflow
       </b-button>
       <br>
       <span v-if="upload_in_progress" class="text-secondary">Upload in progress</span>
@@ -120,8 +126,7 @@
         hover
         small
         responsive
-        fixed
-        :items="executed_assets"
+        :items="assets_array"
       />
     </b-container>
   </div>
@@ -138,6 +143,8 @@
     },
     data() {
       return {
+        hasAssetParam: false,
+        assetIdParam: '',
         definitionsLink: "https://aws.amazon.com/rekognition/faqs/#Unsafe_Content_Detection",
         upload_in_progress: false,
         enabledOperators: [],
@@ -217,7 +224,8 @@
         uploadErrorMessage: "",
         dismissSecs: 8,
         dismissCountDown: 0,
-        executed_assets: [],
+        executed_workflows: {},
+        assets_array: [],
         workflow_status_polling: null,
         description: "Click start to begin. Media analysis status will be shown after upload completes.",
         signurl: process.env.VUE_APP_DATAPLANE_API_ENDPOINT + '/upload',
@@ -238,6 +246,12 @@
           params: {}
         }
       }
+    },
+    created: function () {
+      if (this.$route.query.asset) {
+        this.hasAssetParam = true
+        this.assetIdParam = this.$route.query.asset
+        }
     },
     computed: {
       textFormError() {
@@ -312,7 +326,13 @@
             "FrameBlurStage": {
               "batchBlur": {
                 "DetectionFile": "batchModeration.json",
-                "DetectionId": this.enabledOperators[0]
+                "DetectionId": this.enabledOperators[0],
+                "MinConfidence": "70"
+              }
+            },
+            "FrameStitcherStage": {
+              "frameStitcher": {
+                "RedactionType": this.enabledOperators[0]
               }
             }
           }
@@ -387,6 +407,38 @@
       clearInterval(this.workflow_status_polling)
     },
     methods: {
+      formattedAssetsStatus () {
+        let assetArray = []
+        let workflows = Object.keys(this.executed_workflows)
+          workflows.forEach(item => {
+            let tempObject = {}
+            tempObject.workflow_id = item
+            tempObject.asset_id = this.executed_workflows[item].asset_id
+            tempObject.workflow_status = this.executed_workflows[item].workflow_status
+            tempObject.file_name = this.executed_workflows[item].file_name
+            assetArray.push(tempObject)
+          })
+          this.assets_array = assetArray
+      },
+      async excuteWorkflow (workflowConfig) {
+        const token = await this.$Amplify.Auth.currentSession().then(data =>{
+          var accessToken = data.getIdToken().getJwtToken();
+          return accessToken
+        });
+        let response = await fetch(process.env.VUE_APP_WORKFLOW_API_ENDPOINT + 'workflow/execution', {
+          method: 'post',
+          body: JSON.stringify(workflowConfig),
+          headers: {'Content-Type': 'application/json', 'Authorization': token}
+        })
+        if (response.status === 200) {
+          let result = await response.json()
+          return result
+        }
+        else {
+              console.log("ERROR: Failed to start workflow.");
+              console.log("Response: " + response.status);
+        }
+      },
       countDownChanged(dismissCountDown) {
         this.dismissCountDown = dismissCountDown
       },
@@ -397,10 +449,6 @@
         this.dismissCountDown = this.dismissSecs;
       },
       s3UploadComplete: async function (location) {
-        const token = await this.$Amplify.Auth.currentSession().then(data =>{
-          var accessToken = data.getIdToken().getJwtToken();
-          return accessToken
-        });
         var vm = this;
         var s3_uri = location.s3ObjectLocation.url + location.s3ObjectLocation.fields.key;
         var media_type = location.type;
@@ -441,20 +489,12 @@
             }
           };
         } else if (media_type == 'video/mp4') {
-          if (vm.enabledOperators.includes('RedactedModeratedContent')) {
+          if (this.enabledOperators.includes('Violence') || this.enabledOperators.includes('Explicit Nudity') || this.enabledOperators.includes('Suggestive') || this.enabledOperators.includes('Visually Disturbing') ) {
             data = vm.redactionModerationWorkflowConfig
           }
           else {
             data = vm.workflowConfig;
           }
-          data["Input"] = {
-            "Media": {
-              "Video": {
-                "S3Bucket": process.env.VUE_APP_DATAPLANE_BUCKET,
-                "S3Key": location.s3ObjectLocation.fields.key
-              }
-            }
-          };
         } else if (media_type == 'application/json') {
           // JSON files may be uploaded for the genericDataLookup operator, but
           // we won't run a workflow for json file types.
@@ -463,43 +503,33 @@
         } else {
           vm.s3UploadError("Unsupported media type, " + media_type + ". Please upload a jpg or mp4.")
         }
-        fetch(process.env.VUE_APP_WORKFLOW_API_ENDPOINT + 'workflow/execution', {
-          method: 'post',
-          body: JSON.stringify(data),
-          headers: {'Content-Type': 'application/json', 'Authorization': token}
-        }).then(response =>
-          response.json().then(data => ({
-              data: data,
-              status: response.status
-            })
-          ).then(res => {
-            if (res.status != 200) {
-              console.log("ERROR: Failed to start workflow.");
-              console.log(res.data.Code);
-              console.log(res.data.Message);
-              console.log("URL: " + process.env.VUE_APP_WORKFLOW_API_ENDPOINT + 'workflow/execution');
-              console.log("Data:");
-              console.log(JSON.stringify(data));
-              console.log((data));
-              console.log("Response: " + response.status);
-            } else {
-              var asset_id = res.data.AssetId;
-              var s3key = location.s3ObjectLocation.fields.key;
-              console.log("Media assigned asset id: " + asset_id);
-              vm.executed_assets.push({asset_id: asset_id, file_name: s3key, workflow_status: ""});
-              vm.getWorkflowStatus(asset_id);
-              vm.pollWorkflowStatus()
+        data["Input"] = {
+            "Media": {
+              "Video": {
+                "S3Bucket": process.env.VUE_APP_DATAPLANE_BUCKET,
+                "S3Key": location.s3ObjectLocation.fields.key
             }
-          })
-        )
+          }
+        }
+        // call workflow execution here
+        let workflowResult = await this.excuteWorkflow(data)
+        console.log(workflowResult)
+        var asset_id = workflowResult.AssetId;
+        let wf_id = workflowResult.Id
+        var s3key = location.s3ObjectLocation.fields.key;
+        let status = workflowResult.Status
+        console.log("Media assigned asset id: " + asset_id);
+        vm.executed_workflows[wf_id] = {asset_id: asset_id, file_name: s3key, workflow_status: status}
+        vm.getWorkflowStatus(wf_id);
+        vm.pollWorkflowStatus()
       },
-      async getWorkflowStatus(asset_id) {
+      async getWorkflowStatus(workflow_id) {
         const token = await this.$Amplify.Auth.currentSession().then(data =>{
           var accessToken = data.getIdToken().getJwtToken()
           return accessToken
         })
         var vm = this;
-        fetch(process.env.VUE_APP_WORKFLOW_API_ENDPOINT+'workflow/execution/asset/'+asset_id, {
+        fetch(process.env.VUE_APP_WORKFLOW_API_ENDPOINT+'workflow/execution/'+workflow_id, {
           method: 'get',
           headers: {
             'Authorization': token
@@ -513,12 +543,8 @@
             if (res.status != 200) {
               console.log("ERROR: Failed to get workflow status")
             } else {
-              for (var i = 0; i < vm.executed_assets.length; i++) {
-                if (vm.executed_assets[i].asset_id === asset_id) {
-                  vm.executed_assets[i].workflow_status = res.data[0].Status;
-                  break;
-                }
-              }
+              vm.executed_workflows[workflow_id].workflow_status = res.data.Status
+              this.formattedAssetsStatus()
             }
           })
         )
@@ -527,9 +553,13 @@
         // Poll frequency in milliseconds
         const poll_frequency = 5000
         this.workflow_status_polling = setInterval(() => {
-          this.executed_assets.forEach(item => {
-            if (item.workflow_status === "" || item.workflow_status === "Started" || item.workflow_status === "Queued") {
-              this.getWorkflowStatus(item.asset_id)
+          let workflows = Object.keys(this.executed_workflows)
+          workflows.forEach(item => {
+            if (this.hasAssetParam) {
+              this.getWorkflowStatus(item)
+            }
+            else if (this.executed_workflows[item].workflow_status === "" || this.executed_workflows[item].workflow_status === "Started" || this.executed_workflows[item].workflow_status === "Queued") {
+              this.getWorkflowStatus(item)
             }
           });
         }, poll_frequency)
@@ -539,6 +569,30 @@
         // console.log("Presigning URL endpoint: " + this.signurl);
         this.$refs.myVueDropzone.setAWSSigningURL(this.signurl);
         this.$refs.myVueDropzone.processQueue();
+      },
+      async runWorkflow() {
+        if (this.hasAssetParam) {
+          let data = null;
+          if (this.enabledOperators.includes('Violence') || this.enabledOperators.includes('Explicit Nudity') || this.enabledOperators.includes('Suggestive') || this.enabledOperators.includes('Visually Disturbing') ) {
+            data = this.redactionModerationWorkflowConfig
+          }
+          else {
+            data = this.workflowConfig;
+          }
+          data["Input"] = { "AssetId": this.assetIdParam }
+          let workflowResult = await this.excuteWorkflow(data)
+          let asset_id = workflowResult.AssetId
+          let status = workflowResult.Status
+          let wf_id = workflowResult.Id
+          let s3key = workflowResult.Globals.Media.Video.S3Key
+          this.executed_workflows[wf_id] = {asset_id: asset_id, file_name: s3key, workflow_status: status}
+          this.getWorkflowStatus(wf_id);
+          this.pollWorkflowStatus()
+        }
+        else {
+          // upload files
+          this.uploadFiles()
+        }
       }
     }
   }

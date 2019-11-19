@@ -115,7 +115,7 @@
                 :s3Uri="s3_uri"
                 :filename="filename"
                 :videoUrl="videoOptions.sources[0].src"
-                :redactedLocation="redactedAssetLocation"
+                :redactedLocations="redactedAssetLocations"
               />
             </b-row>
           </div>
@@ -216,7 +216,7 @@
     data: function () {
       return {
         s3_uri: '',
-        redactedAssetLocation: null,
+        redactedAssetLocations: [],
         filename: '',
         currentView: 'LabelObjects',
         showElasticSearchAlert: false,
@@ -239,8 +239,9 @@
     computed: {
       ...mapState(['Confidence'])
     },
-    created() {
-          this.getAssetMetadata();
+    created: async function () {
+          await this.getAssetMetadata();
+          await this.getRedactedCopies();
       },
     methods: {
       async getAssetMetadata () {
@@ -268,7 +269,6 @@
                 this.mediaType = "video/mp4"
               }
               this.getVideoUrl();
-              this.getRedactedCopy();
             })
           });
           this.updateAssetId();
@@ -296,7 +296,23 @@
         }).catch(err => console.error(err));
         })
       },
-      async getRedactedCopy() {
+      async getPresignedUrl (url_data, token) {
+        let download_url_response = await fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT + '/download', {
+              method: 'POST',
+              mode: 'cors',
+              headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token
+              },
+              body: JSON.stringify(url_data)
+            }
+          )
+          if (download_url_response.status === 200) {
+            let download_url_result = await download_url_response.text()
+            return download_url_result
+            }
+      },
+      async getRedactedCopies () {
         const token = await this.$Amplify.Auth.currentSession().then(data =>{
           var accessToken = data.getIdToken().getJwtToken()
           return accessToken
@@ -311,23 +327,19 @@
         })
         if (response.status === 200) {
           let result = await response.json()
-          let redacted_s3_key = result.results.redactedAssetLocation
+          let redacted_s3_keys = result.results.redactedAssets
+          console.log('redacted_copies', redacted_s3_keys)
           let bucket = this.s3_uri.split("/")[2];
-          const data = { "S3Bucket": bucket, "S3Key": redacted_s3_key }
-          console.log('data', data)
-          let download_url_response = await fetch(process.env.VUE_APP_DATAPLANE_API_ENDPOINT + '/download', {
-            method: 'POST',
-            mode: 'cors',
-            headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token
-            },
-            body: JSON.stringify(data)
-          }
-          )
-          if (download_url_response.status === 200) {
-            let download_url_result = await download_url_response.text()
-            this.redactedAssetLocation = download_url_result
+          for (var i = 0, len = redacted_s3_keys.length; i < len; i++) {
+            let versions = Object.keys(redacted_s3_keys[i])
+            console.log(versions)
+            for (var x = 0, ver_len = versions.length; x < ver_len; x++) {
+              const data = { "S3Bucket": bucket, "S3Key": redacted_s3_keys[i][versions[x]] }
+              console.log(data)
+              let presigned_url = await this.getPresignedUrl(data, token)
+              console.log(presigned_url)
+              this.redactedAssetLocations.push({"Type": versions[x], "Location": presigned_url})
+            }
           }
         }
       },

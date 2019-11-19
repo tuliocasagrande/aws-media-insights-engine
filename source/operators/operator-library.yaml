@@ -1507,7 +1507,8 @@ Resources:
       Configuration: 
         {
           "MediaType": "MetadataOnly",
-          "Enabled": true
+          "Enabled": true,
+          "RedactionType": "Violence"
         }
       StartLambdaArn: !GetAtt FrameStitcherFunction.Arn
       StateMachineExecutionRoleArn: !Ref StepFuctionRoleArn

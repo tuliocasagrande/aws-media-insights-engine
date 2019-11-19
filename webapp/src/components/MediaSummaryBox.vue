@@ -5,12 +5,8 @@
       class="my-1"
     >
       <b-col>
-        <label v-if="redactedLocation">
-          <a
-          :href="redactedLocation"
-          >
-          View Redacted Version
-        </a>
+        <label>
+          <router-link :to="{ name: 'upload', query: { asset: this.$route.params.asset_id }}">Perform Additional Analysis</router-link>
         </label>
         <br>
         <label>Asset ID:</label>
@@ -26,6 +22,18 @@
         <br>
         <label>Duration:</label>
         {{ duration }}
+        <br>
+        <label v-if="redactedLocations">
+          View Redacted Versions:
+          <li v-for="item in redactedLocations">
+              <b-button
+                :href="item.Location"
+                variant="link"
+              >
+                {{ item.Type }}
+              </b-button>
+          </li>
+        </label>
       </b-col>
     </b-row>
     <br>
@@ -36,7 +44,7 @@
   import { mapState } from 'vuex'
   export default {
     name: 'MediaSummary',
-    props: ['s3Uri','filename','videoUrl', 'redactedLocation'],
+    props: ['s3Uri','filename','videoUrl', 'redactedLocations'],
     data () {
       return {
         duration: undefined
