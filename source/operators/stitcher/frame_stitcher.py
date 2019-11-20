@@ -81,20 +81,14 @@ def lambda_handler(event, context):
     s3.upload_file(path_out, bucket, upload_s3_key)
 
 
-    existing_redacted = False
-    try:
-        check_existing_redacted = dataplane.retrieve_asset_metadata(asset_id, operator_name="frameStitcher")
-    except Exception:
-        print('No existing redaction copies')
-    else:
-        existing_redacted = True
-    
-    if existing_redacted:
+    check_existing_redacted = dataplane.retrieve_asset_metadata(asset_id, operator_name="frameStitcher")
+
+    if 'results' in check_existing_redacted:
         redacted_copies = check_existing_redacted['results']['redactedAssets']
         redacted_copies.append({redaction_type: upload_s3_key})
         response = {"redactedAssets": redacted_copies}
     else:
-        response = [{redaction_type: upload_s3_key}]
+        response = {"redactedAssets": [{redaction_type: upload_s3_key}]} 
     
     metadata_upload = dataplane.store_asset_metadata(asset_id, "frameStitcher", workflow_id, response)
     if metadata_upload["Status"] == "Success":
