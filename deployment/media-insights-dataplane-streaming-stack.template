@@ -23,6 +23,8 @@ Parameters:
     Description: "Dataplane bucket"
   MieAdminRole:
     Type: String
+  MieDemoRole:
+    Type: String
 
 Mappings: 
   SourceCode:
@@ -137,6 +139,7 @@ Resources:
         AnalyticsStreamArn: !GetAtt AnalyticsStream.Arn
         MieDataplaneBucket: !Ref DataplaneBucket
         MIEAdminRoleArn: !Ref MieAdminRole
+        MIEDemoRoleArn: !Ref MieDemoRole
 
 Outputs:
   ElasticUrl:

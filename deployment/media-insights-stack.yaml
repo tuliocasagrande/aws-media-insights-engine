@@ -839,7 +839,7 @@ Resources:
                   "Statement": [
                       {
                       "Action": [
-                        "execute-api:Invoke"           
+                        "execute-api:Invoke"
                       ],
                       "Effect": "Allow",
                       "Resource": [
@@ -849,7 +849,17 @@ Resources:
                     },
                     {
                       "Action": [
-                        "execute-api:Invoke"           
+                        "execute-api:Invoke"
+                      ],
+                      "Effect": "Allow",
+                      "Resource": [
+                        "arn:aws:execute-api:${region}:${account}:${wfapi}/*/POST/workflow/execution",
+                        "arn:aws:execute-api:${region}:${account}:${dataapi}/*/POST/download",
+                      ]
+                    },
+                    {
+                      "Action": [
+                        "execute-api:Invoke"
                       ],
                       "Effect": "Deny",
                       "Resource": [
@@ -1228,6 +1238,7 @@ Resources:
         DeployElasticConsumer: Yes
         DataplaneBucket: !Ref Dataplane
         MieAdminRole: !GetAtt MieDeveloperRole.Arn
+        MieDemoRole: !GetAtt MieDemoRole.Arn
 
   # Workflow creation and execution API
   MediaInsightsWorkflowApi:
