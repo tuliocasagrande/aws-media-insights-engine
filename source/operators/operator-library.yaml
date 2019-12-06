@@ -26,6 +26,10 @@ Parameters:
     Type: String
     Description: "ARN of the Media insights lambda layer that contains basic python dependencies for boto3, chalice, control plane and dataplane"
 
+  ShortUUID:
+    Type: String
+    Description: "A short UUID that is going to be appended to resource names"
+
 Resources:
   # SNS topic for storing the output of async Rekognition jobs:
   snsRekognitionTopic:
@@ -1265,7 +1269,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "GenericDataLookup"
+      Name: !Sub "GenericDataLookup-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startGenericDataLookup.Arn
@@ -1276,7 +1280,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "Mediaconvert"
+      Name: !Sub "Mediaconvert-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt StartMediaConvertFunction.Arn
@@ -1288,7 +1292,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "Thumbnail"
+      Name: !Sub "Thumbnail-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt StartThumbnailFunction.Arn
@@ -1299,7 +1303,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "Transcribe"
+      Name: !Sub "Transcribe-${ShortUUID}"
       Type: "Async"
       Configuration:
         { "TranscribeLanguage": "en-US", "MediaType": "Audio", "Enabled": true }
@@ -1312,7 +1316,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "WebCaptions"
+      Name: !Sub "WebCaptions-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt WebCaptionsFunction.Arn
@@ -1323,7 +1327,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "CreateSRTCaptions"
+      Name: !Sub "CreateSRTCaptions-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt CreateSRTCaptionsFunction.Arn
@@ -1334,7 +1338,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "CreateVTTCaptions"
+      Name: !Sub "CreateVTTCaptions-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt CreateVTTCaptionsFunction.Arn
@@ -1345,7 +1349,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "WebToSRTCaptions"
+      Name: !Sub "WebToSRTCaptions-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "MetadataOnly", "Enabled": true }
       StartLambdaArn: !GetAtt WebToSRTCaptionsFunction.Arn
@@ -1356,7 +1360,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "WebToVTTCaptions"
+      Name: !Sub "WebToVTTCaptions-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "MetadataOnly", "Enabled": true }
       StartLambdaArn: !GetAtt WebToVTTCaptionsFunction.Arn
@@ -1367,7 +1371,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "Translate"
+      Name: !Sub "Translate-${ShortUUID}"
       Type: "Sync"
       Configuration:
         {
@@ -1384,7 +1388,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "Polly"
+      Name: !Sub "Polly-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt StartPollyFunction.Arn
@@ -1396,7 +1400,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "ComprehendKeyPhrases"
+      Name: !Sub "ComprehendKeyPhrases-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt startKeyPhrases.Arn
@@ -1408,7 +1412,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "ComprehendEntities"
+      Name: !Sub "ComprehendEntities-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Text", "Enabled": true }
       StartLambdaArn: !GetAtt startEntityDetection.Arn
@@ -1420,7 +1424,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "celebrityRecognition"
+      Name: !Sub "celebrityRecognition-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startCelebrityRecognition.Arn
@@ -1432,7 +1436,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "celebrityRecognitionImage"
+      Name: !Sub "celebrityRecogImage-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startCelebrityRecognition.Arn
@@ -1443,7 +1447,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "contentModeration"
+      Name: !Sub "contentModeration-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startContentModeration.Arn
@@ -1455,7 +1459,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "contentModerationImage"
+      Name: !Sub "contentModeratImage-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startContentModeration.Arn
@@ -1466,7 +1470,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "faceDetection"
+      Name: !Sub "faceDetection-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startFaceDetection.Arn
@@ -1478,7 +1482,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "faceDetectionImage"
+      Name: !Sub "faceDetectionImage-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startFaceDetection.Arn
@@ -1489,7 +1493,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "faceSearch"
+      Name: !Sub "faceSearch-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startFaceSearch.Arn
@@ -1501,7 +1505,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "faceSearchImage"
+      Name: !Sub "faceSearchImage-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startFaceSearch.Arn
@@ -1512,7 +1516,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "labelDetection"
+      Name: !Sub "labelDetection-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startLabelDetection.Arn
@@ -1524,7 +1528,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "labelDetectionImage"
+      Name: !Sub "labelDetectionImage-${ShortUUID}"
       Type: "Sync"
       Configuration: { "MediaType": "Image", "Enabled": true }
       StartLambdaArn: !GetAtt startLabelDetection.Arn
@@ -1535,7 +1539,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Operation"
-      Name: "personTracking"
+      Name: !Sub "personTracking-${ShortUUID}"
       Type: "Async"
       Configuration: { "MediaType": "Video", "Enabled": true }
       StartLambdaArn: !GetAtt startPersonTracking.Arn
