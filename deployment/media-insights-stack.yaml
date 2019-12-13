@@ -1189,6 +1189,7 @@ Resources:
             "workflowapi.zip",
             ],
           ]
+        ShortUUID: !GetAtt GetShortUUID.Data
 
   # LambdaFunctionEventSourceMapping:
   #   Type: AWS::Lambda::EventSourceMapping
