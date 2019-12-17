@@ -304,10 +304,6 @@ def create_asset():
     asset = app.current_request.json_body
     logger.info(asset)
 
-    # create a uuid for the asset
-
-    asset_id = str(uuid.uuid4())
-
     # check required inputs
 
     try:
@@ -318,6 +314,18 @@ def create_asset():
         raise BadRequestError("Missing required inputs for asset creation: {e}".format(e=e))
     else:
         logger.info("Creating an asset from: {bucket}/{key}".format(bucket=source_bucket, key=source_key))
+
+    # create a uuid for the asset
+    # keys are in the form of inputs/collection_id/date/*.mp4
+    try:
+        split_source_key = source_key.split('/')
+        collection = split_source_key[1]
+        aired_date = split_source_key[2]
+        asset_id = os.path.splitext(split_source_key[-1])[0]
+    except IndexError:
+        collection = ''
+        aired_date = ''
+        asset_id = str(uuid.uuid4())
 
     # create directory structure in s3 dataplane bucket for the asset
     directory = uri + asset_id + "/"
@@ -364,15 +372,19 @@ def create_asset():
     ts = str(datetime.datetime.now().timestamp())
 
     try:
+        item = {
+            "AssetId": asset_id,
+            "Collection": collection,
+            "AiredDate": aired_date,
+            "S3Bucket": dataplane_s3_bucket,
+            "S3Key": new_key,
+            "Created": ts
+        }
+        # little hack because DynamoDB does not support empty strings
+        item = {key: value for key, value in item.items() if value}
+
         table = dynamo_resource.Table(table_name)
-        table.put_item(
-            Item={
-                "AssetId": asset_id,
-                "S3Bucket": dataplane_s3_bucket,
-                "S3Key": new_key,
-                "Created": ts
-            }
-        )
+        table.put_item(Item=item)
     except ClientError as e:
         error = e.response['Error']['Message']
         logger.error("Exception occurred during asset creation: {e}".format(e=error))
