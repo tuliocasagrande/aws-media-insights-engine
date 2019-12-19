@@ -47,6 +47,7 @@ API_VERSION = "1.0.0"
 logger = logging.getLogger('boto3')
 logger.setLevel(logging.INFO)
 
+STACK_SHORT_UUID = os.environ["STACK_SHORT_UUID"]
 SYSTEM_TABLE_NAME = os.environ["SYSTEM_TABLE_NAME"]
 WORKFLOW_TABLE_NAME = os.environ["WORKFLOW_TABLE_NAME"]
 STAGE_TABLE_NAME = os.environ["STAGE_TABLE_NAME"]
@@ -56,7 +57,7 @@ HISTORY_TABLE_NAME = os.environ["HISTORY_TABLE_NAME"]
 STAGE_EXECUTION_QUEUE_URL = os.environ["STAGE_EXECUTION_QUEUE_URL"]
 STAGE_EXECUTION_ROLE = os.environ["STAGE_EXECUTION_ROLE"]
 # FIXME testing NoQ execution
-COMPLETE_STAGE_LAMBDA_ARN = os.environ["COMPLETE_STAGE_LAMBDA_ARN"] 
+COMPLETE_STAGE_LAMBDA_ARN = os.environ["COMPLETE_STAGE_LAMBDA_ARN"]
 FILTER_OPERATION_LAMBDA_ARN = os.environ["FILTER_OPERATION_LAMBDA_ARN"]
 OPERATOR_FAILED_LAMBDA_ARN = os.environ["OPERATOR_FAILED_LAMBDA_ARN"]
 WORKFLOW_SCHEDULER_LAMBDA_ARN = os.environ["WORKFLOW_SCHEDULER_LAMBDA_ARN"]
@@ -1812,6 +1813,16 @@ def create_workflow_execution_api():
     return create_workflow_execution("api", workflow_execution)
 
 
+def append_uuid_to_resources(Configuration):
+    new_configuration = {}
+    for stage, sconfig in Configuration.items():
+        new_configuration[f'{stage}-{STACK_SHORT_UUID}'] = {
+            f'{operation}-{STACK_SHORT_UUID}': oconfig
+            for operation, oconfig in sconfig.items()
+        }
+    return new_configuration
+
+
 def create_workflow_execution(trigger, workflow_execution):
     execution_table = DYNAMO_RESOURCE.Table(WORKFLOW_EXECUTION_TABLE_NAME)
     dynamo_status_queued = False
@@ -1825,10 +1836,11 @@ def create_workflow_execution(trigger, workflow_execution):
         create_asset = False
 
     try:
-        Name = workflow_execution["Name"]
+        Name = workflow_execution["Name"] + f'-{STACK_SHORT_UUID}'
 
         Configuration = workflow_execution["Configuration"] if "Configuration" in workflow_execution  else {}
-        
+        Configuration = append_uuid_to_resources(Configuration)
+
         # BRANDON - make an asset
         dataplane = DataPlane()
         if create_asset is True:

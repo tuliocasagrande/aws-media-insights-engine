@@ -12,6 +12,9 @@ Parameters:
   OperatorLibraryStack:
     Description: "Name of the operator library stack"
     Type: String
+  ShortUUID:
+    Type: String
+    Description: "A short UUID that is going to be appended to resource names"
 
 Resources:
 
@@ -22,7 +25,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Stage"
-      Name: "parallelRekognitionStage"
+      Name: !Sub "parallelRekognitionStage-${ShortUUID}"
       Operations:
         - Fn::ImportValue:
             Fn::Sub: "${OperatorLibraryStack}:CelebRecognition"
@@ -45,7 +48,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Stage"
-      Name: "RekognitionVideoNoFaceSearchStage"
+      Name: !Sub "RekogVdNoFaceSearchStage-${ShortUUID}"
       Operations:
         - Fn::ImportValue:
             Fn::Sub: "${OperatorLibraryStack}:LabelDetection"
@@ -63,7 +66,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Stage"
-      Name: "RekognitionStage"
+      Name: !Sub "RekognitionStage-${ShortUUID}"
       Operations:
         - Fn::ImportValue:
             Fn::Sub: "${OperatorLibraryStack}:CelebRecognitionImage"
@@ -83,7 +86,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Stage"
-      Name: "RekognitionImageNoFaceSearchStage"
+      Name: !Sub "RekogImNoFaceSearchStage-${ShortUUID}"
       Operations:
         - Fn::ImportValue:
             Fn::Sub: "${OperatorLibraryStack}:CelebRecognitionImage"
@@ -145,7 +148,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Workflow"
-      Name: "ParallelRekognitionWorkflow"
+      Name: !Sub "ParallelRekognitionWorkflow-${ShortUUID}"
       Stages: !Sub
         - |-
           {
@@ -168,7 +171,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Workflow"
-      Name: "ImageWorkflow"
+      Name: !Sub "ImageWorkflow-${ShortUUID}"
       Stages: !Sub
         - |-
           {
@@ -189,7 +192,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Workflow"
-      Name: "RekognitionVideoWorkflow"
+      Name: !Sub "RekognitionVideoWorkflow-${ShortUUID}"
       Stages: !Sub
         - |-
           {
@@ -210,7 +213,7 @@ Resources:
     Properties:
       ServiceToken: !Ref WorkflowCustomResourceArn
       ResourceType: "Workflow"
-      Name: "RekognitionImageWorkflow"
+      Name: !Sub "RekognitionImageWorkflow-${ ShortUUID}"
       Stages: !Sub
         - |-
           {
@@ -223,4 +226,3 @@ Resources:
           rekognitionSuite: !GetAtt RekognitionImageNoFaceSearchStage.Name
         }
       StartAt: !GetAtt RekognitionImageNoFaceSearchStage.Name
-
