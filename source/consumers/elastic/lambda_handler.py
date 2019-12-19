@@ -185,7 +185,7 @@ def process_face_search(asset, workflow, results):
         for page in metadata:
             if "Persons" in page:
                 for item in page["Persons"]:
-                    item["Operator"] = "faceSearch"
+                    item["Operator"] = "face_search"
                     item["Workflow"] = workflow
                     # flatten person key
                     item["PersonIndex"] = item["Person"]["Index"]
@@ -197,54 +197,58 @@ def process_face_search(asset, workflow, results):
                         item["FaceLandmarks"] = item["Person"]["Face"]["Landmarks"]
                         item["FacePose"] = item["Person"]["Face"]["Pose"]
                         item["FaceQuality"] = item["Person"]["Face"]["Quality"]
-                        confidence = item["Person"]["Face"]["Confidence"]
-                        item["Confidence"] = confidence
+                        item["Confidence"] = item["Person"]["Face"]["Confidence"]
 
-                    if "FaceMatches" in item:
+                    # flatten face matches key
+                    if item["FaceMatches"]:
                         item["ContainsKnownFace"] = True
-                        # flatten face matches key
-                        for face in item["FaceMatches"]:
-                            item["KnownFaceSimilarity"] = face["Similarity"]
-                            item["MatchingKnownFaceId"] = face["Face"]["FaceId"]
-                            item["KnownFaceBoundingBox"] = face["Face"]["BoundingBox"]
-                            item["ImageId"] = face["Face"]["ImageId"]
-                        del item["FaceMatches"]
+
+                        face = item["FaceMatches"][0]  # the highest similarity comes first
+                        item["KnownFaceSimilarity"] = face["Similarity"]
+                        item["MatchingKnownFaceId"] = face["Face"]["FaceId"]
+                        item["ImageId"] = face["Face"]["ImageId"]
+                        item["ExternalImageId"] = face["Face"].get("ExternalImageId", None)
                     else:
                         item["ContainsKnownFace"] = False
+
                     del item["Person"]
+                    del item["FaceMatches"]
 
                     extracted_items.append(item)
 
     else:
         if "Persons" in metadata:
             for item in metadata["Persons"]:
-                item["Operator"] = "faceSearch"
+                item["Operator"] = "face_search"
                 item["Workflow"] = workflow
                 # flatten person key
                 item["PersonIndex"] = item["Person"]["Index"]
                 if "BoundingBox" in item["Person"]:
                     item["PersonBoundingBox"] = item["Person"]["BoundingBox"]
-                #flatten face key
+                # flatten face key
                 if "Face" in item["Person"]:
                     item["FaceBoundingBox"] = item["Person"]["Face"]["BoundingBox"]
                     item["FaceLandmarks"] = item["Person"]["Face"]["Landmarks"]
                     item["FacePose"] = item["Person"]["Face"]["Pose"]
                     item["FaceQuality"] = item["Person"]["Face"]["Quality"]
-                    confidence = item["Person"]["Face"]["Confidence"]
-                    item["Confidence"] = confidence
+                    item["Confidence"] = item["Person"]["Face"]["Confidence"]
 
-                if "FaceMatches" in item:
+                # flatten face matches key
+                if item["FaceMatches"]:
                     item["ContainsKnownFace"] = True
-                    # flatten face matches key
-                    for face in item["FaceMatches"]:
-                        item["KnownFaceSimilarity"] = face["Similarity"]
-                        item["MatchingKnownFaceId"] = face["Face"]["FaceId"]
-                        item["KnownFaceBoundingBox"] = face["Face"]["BoundingBox"]
-                        item["ImageId"] = face["Face"]["ImageId"]
-                    del item["FaceMatches"]
+
+                    face = item["FaceMatches"][0]  # the highest similarity comes first
+                    item["KnownFaceSimilarity"] = face["Similarity"]
+                    item["KnownFaceConfidence"] = face["Face"]["Confidence"]
+                    item["MatchingKnownFaceId"] = face["Face"]["FaceId"]
+                    item["KnownFaceBoundingBox"] = face["Face"]["BoundingBox"]
+                    item["ImageId"] = face["Face"]["ImageId"]
+                    item["ExternalImageId"] = face["Face"].get("ExternalImageId", None)
                 else:
                     item["ContainsKnownFace"] = False
+
                 del item["Person"]
+                del item["FaceMatches"]
 
                 extracted_items.append(item)
 
@@ -643,7 +647,7 @@ def bulk_index(es_object, asset, index, data):
         print('Unable to load data into es:', e)
         print("Data: ", data)
     else:
-        print("Successfully stored data in elasticsearch for asset: ", asset)
+        print(f"Successfully stored {es_index} in elasticsearch for: {asset}")
 
 
 def index_document(es_object, asset, index, data):
@@ -659,7 +663,7 @@ def index_document(es_object, asset, index, data):
         print('Unable to load data into es:', e)
         print("Data:", data)
     else:
-        print("Successfully stored data in elasticsearch for:", asset)
+        print(f"Successfully stored {es_index} in elasticsearch for: {asset}")
 
 
 def read_json_from_s3(key):

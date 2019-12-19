@@ -90,11 +90,11 @@
 </template>
 
 <script>
-  import Loading from '@/components/Loading.vue'
   import { mapState } from 'vuex'
+  import Loading from '@/components/Loading.vue'
 
   export default {
-    name: "FaceDetection",
+    name: "FaceSearch",
     components: {
       Loading
     },
@@ -109,14 +109,14 @@
         Confidence: 90,
         high_confidence_data: [],
         elasticsearch_data: [],
+        boxes_available: [],
         count_distinct_labels: 0,
         count_labels: 0,
         isBusy: false,
-        operator: 'face_detection',
+        operator: 'face_search',
         canvasRefreshInterval: undefined,
         timeseries: new Map(),
         selectedLabel: '',
-        boxes_available: [],
         lowerConfidence: false,
         lowerConfidenceMessage: 'Try lowering confidence threshold'
       }
@@ -129,13 +129,13 @@
         const unique_labels = new Map();
         // sort and count unique labels for label mouse over events
         es_data.forEach(function (record) {
-          unique_labels.set(record.Name, unique_labels.get(record.Name) ? unique_labels.get(record.Name) + 1 : 1)
+          unique_labels.set(record.Name, unique_labels.get(record.Name) ? unique_labels.get(record.Name) + 1 : 1);
           if (record.BoundingBox) {
             // Save this label name to a list of labels that have bounding boxes
             this.saveBoxedLabel(record.Name)
           }
         }.bind(this));
-        var sorted_unique_labels = new Map([...unique_labels.entries()].slice().sort((a, b) => b[1] - a[1]))
+        var sorted_unique_labels = new Map([...unique_labels.entries()].slice().sort((a, b) => b[1] - a[1]));
         // If Elasticsearch returned undefined labels then delete them:
         sorted_unique_labels.delete(undefined);
         this.countLabels(sorted_unique_labels.size, es_data.length);
@@ -169,96 +169,10 @@
       this.elasticsearch_data = [];
       this.count_distinct_labels = 0;
       this.count_labels = 0;
+      clearInterval(this.canvasRefreshInterval);
     },
     methods: {
-      async fetchAssetData () {
-          let query = 'AssetId:'+this.$route.params.asset_id+' Confidence:>'+this.Confidence+' Operator:'+this.operator
-          let apiName = 'mieElasticsearch';
-          let path = '/_search';
-          let apiParams = {
-            headers: {'Content-Type': 'application/json'},
-            queryStringParameters: {'q': query, 'default_operator': 'AND', 'size': 10000}
-          }
-          let response = await this.$Amplify.API.get(apiName, path, apiParams)
-          if (!response) {
-            this.showElasticSearchAlert = true
-          }
-          else {
-            let result = await response;
-            let data = result.hits.hits;
-            let es_data = [];
-            if (data.length === 0 && this.Confidence > 55) {
-              this.lowerConfidence = true;
-              this.lowerConfidenceMessage = 'Try lowering confidence threshold'
-            } else {
-              this.lowerConfidence = false;
-              for (var i = 0, len = data.length; i < len; i++) {
-                let item = data[i]._source;
-                if ("Emotions" in item) {
-                  for (var emotion = 0, emotionsLen = item.Emotions.length; emotion < emotionsLen; emotion++) {
-                    if (item.Emotions[emotion].Confidence >= this.Confidence) {
-                      es_data.push({"Name": item.Emotions[emotion].Type, "Timestamp": item.Timestamp})
-                    }
-                  }
-                }
-                if ("Beard" in item) {
-                  if (item.Beard.Confidence > this.Confidence) {
-                    es_data.push({"Name": "Beard", "Timestamp": item.Timestamp})
-                  }
-                }
-                if ("Eyeglasses" in item) {
-                  if (item.Eyeglasses.Confidence > this.Confidence) {
-                    es_data.push({"Name": "Eyeglasses", "Timestamp": item.Timestamp})
-                  }
-                }
-                if ("EyesOpen" in item) {
-                  if (item.EyesOpen.Confidence > this.Confidence) {
-                    es_data.push({"Name": "EyesOpen", "Timestamp": item.Timestamp})
-                  }
-                }
-                if ("MouthOpen" in item) {
-                  if (item.MouthOpen.Confidence > this.Confidence) {
-                    es_data.push({"Name": "MouthOpen", "Timestamp": item.Timestamp})
-                  }
-                }
-                if ("Mustache" in item) {
-                  if (item.Mustache.Confidence > this.Confidence) {
-                    es_data.push({"Name": "Mustache", "Timestamp": item.Timestamp})
-                  }
-                }
-                if ("Smile" in item) {
-                  if (item.Smile.Confidence > this.Confidence) {
-                    es_data.push({"Name": "Smile", "Timestamp": item.Timestamp})
-                  }
-                }
-                if ("Sunglasses" in item) {
-                  if (item.Sunglasses.Confidence > this.Confidence) {
-                    es_data.push({"Name": "Sunglasses", "Timestamp": item.Timestamp})
-                  }
-                }
-                if ("Gender" in item) {
-                  es_data.push({"Name": item.Gender.Value, "Timestamp": item.Timestamp})
-                }
-                if ("BoundingBox" in item) {
-                  es_data.push({
-                    "Name": "Face",
-                    "Timestamp": item.Timestamp,
-                    "Confidence": item.Confidence,
-                    "BoundingBox": {
-                      "Width": item.BoundingBox.Width,
-                      "Height": item.BoundingBox.Height,
-                      "Left": item.BoundingBox.Left,
-                      "Top": item.BoundingBox.Top
-                    }
-                  })
-                }
-              }
-            }
-            this.elasticsearch_data = JSON.parse(JSON.stringify(es_data))
-            this.isBusy = false
-        }
-      },
-      saveBoxedLabel(label_name) {
+      saveBoxedLabel(label_name){
         if (!this.boxes_available.includes(label_name)) {
           this.boxes_available.push(label_name);
         }
@@ -268,7 +182,7 @@
         this.count_labels = total_count;
       },
       saveFile() {
-        const elasticsearch_data = JSON.stringify(this.elasticsearch_data);
+        const elasticsearch_data = this.elasticsearch_data;
         const blob = new Blob([elasticsearch_data], {type: 'text/plain'});
         const e = document.createEvent('MouseEvents'),
           a = document.createElement('a');
@@ -279,8 +193,9 @@
         a.dispatchEvent(e);
       },
       updateConfidence (event) {
-        this.isBusy = true
+        this.isBusy = !this.isBusy
         this.Confidence = event.target.value;
+        // TODO: move image processing to a separate component
         if (this.mediaType === "video/mp4") {
           // redraw markers on video timeline
           this.player.markers.removeAll();
@@ -305,16 +220,15 @@
           this.selectedLabel = "";
           return
         }
-        this.selectedLabel = label;
-        // initialize lists of boxes and markers to be drawn
+        this.selectedLabel = label;        // initialize lists of boxes and markers to be drawn
         var boxMap = new Map();
         var markers = [];
-        var es_data = this.elasticsearch_data
-        var instance = 0;
+        var es_data = this.elasticsearch_data;
         var i=0;
-        es_data.forEach(function (record) {
+        es_data.forEach(function(record) {
           if (record.Name === label) {
-            markers.push({'time': record.Timestamp/1000, 'text': record.Name, 'overlayText': record.Name})
+            // Save label name overlaying on video timeline
+            markers.push({'time': record.Timestamp/1000, 'text': record.Name, 'overlayText': record.Name});
             // Save bounding box info if it exists
             if (record.BoundingBox) {
               // TODO: move image processing to a separate component
@@ -332,32 +246,17 @@
               } else {
                 // Use time resolution of 0.1 second
                 const timestamp = Math.round(record.Timestamp / 100);
-                if (boxMap.has(timestamp)) {
-                  const boxinfo = {
-                    'instance': instance++,
-                    'timestamp': Math.ceil(record.Timestamp / 100),
-                    'name': record.Name,
-                    'confidence': (record.Confidence * 1).toFixed(2),
-                    'x': record.BoundingBox.Left * canvas.width,
-                    'y': record.BoundingBox.Top * canvas.height,
-                    'width': record.BoundingBox.Width * canvas.width,
-                    'height': record.BoundingBox.Height * canvas.height
-                  };
-                  boxMap.get(timestamp).push(boxinfo)
-                } else {
-                  instance = 0;
-                  const boxinfo = {
-                    'instance': instance++,
-                    'timestamp': Math.ceil(record.Timestamp / 100),
-                    'name': record.Name,
-                    'confidence': (record.Confidence * 1).toFixed(2),
-                    'x': record.BoundingBox.Left * canvas.width,
-                    'y': record.BoundingBox.Top * canvas.height,
-                    'width': record.BoundingBox.Width * canvas.width,
-                    'height': record.BoundingBox.Height * canvas.height
-                  };
-                  boxMap.set(timestamp, [boxinfo])
-                }
+                const boxinfo = {
+                  'instance': 0,
+                  'timestamp': Math.ceil(record.Timestamp / 100),
+                  'name': record.Name,
+                  'confidence': (record.Confidence * 1).toFixed(2),
+                  'x': record.BoundingBox.Left * canvas.width,
+                  'y': record.BoundingBox.Top * canvas.height,
+                  'width': record.BoundingBox.Width * canvas.width,
+                  'height': record.BoundingBox.Height * canvas.height
+                };
+                boxMap.set(timestamp, [boxinfo])
               }
             }
           }
@@ -370,6 +269,61 @@
           // redraw markers on video timeline
           this.player.markers.removeAll();
           this.player.markers.add(markers);
+        }
+      },
+      async fetchAssetData () {
+        let query = 'AssetId:'+this.$route.params.asset_id+' Confidence:>'+this.Confidence+' Operator:'+this.operator
+        let apiName = 'mieElasticsearch';
+        let path = '/_search';
+        let apiParams = {
+          headers: {'Content-Type': 'application/json'},
+          queryStringParameters: {'q': query, 'default_operator': 'AND', 'size': 10000}
+        }
+        let response = await this.$Amplify.API.get(apiName, path, apiParams)
+        if (!response) {
+          this.showElasticSearchAlert = true
+        }
+        else {
+          let es_data = [];
+          let result = await response;
+          let data = result.hits.hits;
+          if (data.length === 0 && this.Confidence > 55) {
+            this.lowerConfidence = true;
+            this.lowerConfidenceMessage = 'Try lowering confidence threshold'
+          } else {
+            this.lowerConfidence = false;
+            for (var i = 0, len = data.length; i < len; i++) {
+              let item = data[i]._source;
+
+              if (item.ContainsKnownFace) {
+                es_data.push({
+                  "Name": item.MatchingKnownFaceId,
+                  "Timestamp": item.Timestamp,
+                  "Confidence": item.Confidence,
+                  "BoundingBox": {
+                    "Width": item.FaceBoundingBox.Width,
+                    "Height": item.FaceBoundingBox.Height,
+                    "Left": item.FaceBoundingBox.Left,
+                    "Top": item.FaceBoundingBox.Top
+                  }
+                })
+              } else if ("FaceBoundingBox" in item) {
+                es_data.push({
+                  "Name": 'Person' + item.PersonIndex,
+                  "Timestamp": item.Timestamp,
+                  "Confidence": item.Confidence,
+                  "BoundingBox": {
+                    "Width": item.FaceBoundingBox.Width,
+                    "Height": item.FaceBoundingBox.Height,
+                    "Left": item.FaceBoundingBox.Left,
+                    "Top": item.FaceBoundingBox.Top
+                  }
+                })
+              }
+            }
+          }
+          this.elasticsearch_data = JSON.parse(JSON.stringify(es_data))
+          this.isBusy = false
         }
       },
       drawBoxes: function(boxMap) {
@@ -464,12 +418,12 @@
           // Define timestamp with millisecond resolution
           const millisecond = Math.round(record.Timestamp);
           if (this.selectedLabel) {
-            // No label has been selected, so enumerate timestamps for all label names.
+            // If label is defined, then enumerate timestamps for that label
             if (record.Name === this.selectedLabel) {
               saveTimestamp(millisecond);
             }
           } else {
-            // Label is undefined. Enumerate timestamps for all label names.
+            // No label has been selected, so enumerate timestamps for all label names.
             saveTimestamp(millisecond);
           }
         }.bind(this));
