@@ -675,7 +675,8 @@ def get_asset_metadata(asset_id):
             #  entire request vs. a page for a specific operator
             if "Item" in asset_item:
                 asset_attributes = asset_item["Item"]
-                global_attributes = ['S3Key', 'S3Bucket', 'AssetId', 'Created']
+                global_attributes = ['S3Key', 'S3Bucket', 'AssetId', 'Created',
+                                     'AiredDate', 'Collection']
                 remaining_attributes = list(set(asset_attributes.keys()) - set(global_attributes))
                 remaining = []
 
